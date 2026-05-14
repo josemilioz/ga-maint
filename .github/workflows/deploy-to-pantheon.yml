@@ -1,0 +1,124 @@
+name: JEZZ to Pantheon
+on:
+  push:
+    branches:
+      - '**'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure full history is fetched
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: mbstring, curl, xml, zip, mysql
+
+      - name: Install Terminus
+        run: |
+          curl -sSL https://github.com/pantheon-systems/terminus/releases/download/3.6.2/terminus.phar -o /usr/local/bin/terminus
+          chmod +x /usr/local/bin/terminus
+
+      - name: Authenticate with Terminus
+        run: |
+          terminus auth:login --machine-token=${{ secrets.PANTHEON_MACHINE_TOKEN }}
+
+      - name: Define the environment in which you'll push
+        run: |
+          # Dynamically use the current branch for deployment
+          export CURRENT_BRANCH="${GITHUB_REF##*/}"
+
+          if [ "$CURRENT_BRANCH" == "master" ]; then
+            export PANTHEON_ENV="dev"
+          else
+            export PANTHEON_ENV="$CURRENT_BRANCH"
+          fi
+
+          echo "PANTHEON_ENV=$PANTHEON_ENV" >> $GITHUB_ENV
+          echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
+
+      - name: Add Pantheon Git Remote
+        run: |
+          # Establish the environment as git
+          terminus connection:set ${{ secrets.PANTHEON_SITE_NAME }}.${{ env.PANTHEON_ENV }} git
+
+          # Get Pantheon Git URL and set it as a remote
+          export PANTHEON_GIT_URL=$(terminus connection:info ${{ secrets.PANTHEON_SITE_NAME }}.${{ env.PANTHEON_ENV }} --field=git_url)
+          git remote add pantheon $PANTHEON_GIT_URL
+
+          echo "PANTHEON_GIT_URL=$PANTHEON_GIT_URL" >> $GITHUB_ENV
+
+          # Check the remotes
+          git remote -v
+
+      - name: Setup the SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keygen -t rsa -m PEM -C "github-actions@pantheon" -f ~/.ssh/id_rsa -N ""
+          terminus ssh-key:add ~/.ssh/id_rsa.pub --yes
+
+          PANTHEON_SSH_KEY_DOMAIN=$(echo "${{ env.PANTHEON_GIT_URL }}" | awk -F'[@/]' '{print $4}')
+
+          cat <<EOF >> ~/.ssh/config
+          Host *.drush.in
+            StrictHostKeyChecking no
+          EOF
+
+          # ssh-keyscan -H "$PANTHEON_SSH_KEY_DOMAIN" >> ~/.ssh/known_hosts
+
+      - name: Get user email from GitHub API
+        run: |
+          # Set the committer and author to the current GitHub user
+          git config --global user.name "${{ github.actor }}"
+
+          # Get the email of the user who triggered the workflow using GitHub API
+          USER_EMAIL=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/users/${{ github.actor }} | jq -r .email)
+
+          # Use the retrieved email or fallback to the default private email if not available
+          if [ -z "$USER_EMAIL" ]; then
+            git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          else
+            git config --global user.email "$USER_EMAIL"
+          fi
+
+      - name: Push code to Pantheon
+        run: |
+          # Fetch branches from Pantheon
+          git branch
+          git checkout ${{ env.CURRENT_BRANCH }} || git checkout -b ${{ env.CURRENT_BRANCH }}
+
+          git fetch --all
+          git branch --set-upstream-to=pantheon/${{ env.CURRENT_BRANCH }}
+          git pull pantheon ${{ env.CURRENT_BRANCH }} --no-rebase
+
+          # Debug: Check the status before adding files
+          # git status
+          # git diff
+          # git diff --staged
+
+          git push pantheon ${{ env.CURRENT_BRANCH }}
+          exit 0  # Ensure GitHub Actions doesn't treat this as a failure
+
+      - name: Remove the last SSH Key we Added to Pantheon
+        run: |
+          # grab the ID and use it to remove the key
+          export COLUMNS=256 # So the table displayed by terminus won't split into useless lines
+
+          terminus ssh-key:list
+
+          LAST_SSH_KEY_ID=$(terminus ssh-key:list | grep "github-actions@pantheon" | awk '{ print $1 }')
+
+          if [ -n "$LAST_SSH_KEY_ID" ] && [ '.' !=  "$LAST_SSH_KEY_ID" ]; then
+            echo "$LAST_SSH_KEY_ID" | while IFS= read -r KEY; do
+              if [ -n "$KEY" ]; then
+                terminus ssh-key:remove "$KEY"
+              fi
+            done
+          fi

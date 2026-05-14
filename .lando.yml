@@ -1,0 +1,7 @@
+name: jose-playground
+recipe: pantheon
+config:
+  framework: wordpress
+  site: jose-playground
+  id: e81bd5e2-57cf-4343-ab38-b891fe3ba16b
+  edge: false
