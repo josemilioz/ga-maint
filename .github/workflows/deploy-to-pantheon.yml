@@ -1,8 +1,8 @@
 name: JEZZ to Pantheon
-on:
-  push:
-    branches:
-      - '**'
+# on:
+#   push:
+#     branches:
+#       - '**'
 jobs:
   deploy:
     runs-on: ubuntu-latest
