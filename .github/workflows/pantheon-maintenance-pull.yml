@@ -93,22 +93,22 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
+          OUTPUT=$(wp plugin update --all --format=table 2>&1 || true)
           {
-            echo '## Plugin Updates'
-            echo '```text'
-            wp plugin update --all --format=table
-            echo '```'
-          } > plugin-update.md
+            echo "table<<WPCLI_DELIM"
+            echo "$OUTPUT"
+            echo "WPCLI_DELIM"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Update themes
         id: theme_update
         run: |
+          OUTPUT=$(wp theme update --all --format=table 2>&1 || true)
           {
-            echo '## Theme Updates'
-            echo '```text'
-            wp theme update --all --format=table
-            echo '```'
-          } > theme-update.md
+            echo "table<<WPCLI_DELIM"
+            echo "$OUTPUT"
+            echo "WPCLI_DELIM"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
         run: rm -f wp-config-local.php
@@ -119,24 +119,16 @@ jobs:
       - name: Update WordPress core from Pantheon upstream
         id: core_update
         run: |
-          {
-            echo '## WordPress Core Update'
-            echo '```text'
-            git pull -X theirs https://github.com/pantheon-systems/WordPress.git master --no-rebase --allow-unrelated-histories --no-edit
-            echo '```'
-          } > core-update.md
-
-      - name: Build pull request description
-        run: |
-          {
-            echo "# Automated maintenance for ${{ steps.vars.outputs.MONTH_YEAR }}"
-            echo
-            cat core-update.md
-            echo
-            cat plugin-update.md
-            echo
-            cat theme-update.md
-          } > pr-body.md
+          BEFORE=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
+          git pull -X theirs https://github.com/pantheon-systems/WordPress.git master \
+            --no-rebase --allow-unrelated-histories --no-edit
+          AFTER=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
+          if [ "$BEFORE" != "$AFTER" ]; then
+            echo "updated=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$AFTER" >> "$GITHUB_OUTPUT"
 
       - name: Check for changes
         id: changes
@@ -163,12 +155,28 @@ jobs:
         if: steps.changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          PLUGIN_TABLE: ${{ steps.plugin_update.outputs.table }}
+          THEME_TABLE: ${{ steps.theme_update.outputs.table }}
+          CORE_UPDATED: ${{ steps.core_update.outputs.updated }}
+          CORE_VERSION: ${{ steps.core_update.outputs.version }}
+          MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
+          BRANCH_NAME: ${{ steps.vars.outputs.BRANCH_NAME }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          if [ "$CORE_UPDATED" = "true" ]; then
+            CORE_LINE="Updated to **${CORE_VERSION}**"
+          else
+            CORE_LINE="No update — already at **${CORE_VERSION}**"
+          fi
+
+          PR_BODY="$(printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n```\n%s\n```\n\n## Themes\n```\n%s\n```' \
+            "$MONTH_YEAR" "$CORE_LINE" "$PLUGIN_TABLE" "$THEME_TABLE")"
+
           gh pr create \
-            --base "${{ github.event.repository.default_branch }}" \
-            --head "${{ steps.vars.outputs.BRANCH_NAME }}" \
-            --title "maintenance for ${{ steps.vars.outputs.MONTH_YEAR }}" \
-            --body-file pr-body.md
+            --base "$DEFAULT_BRANCH" \
+            --head "$BRANCH_NAME" \
+            --title "maintenance for $MONTH_YEAR" \
+            --body "$PR_BODY"
 
       - name: No changes detected
         if: steps.changes.outputs.has_changes == 'false'
