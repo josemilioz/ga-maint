@@ -85,10 +85,7 @@ jobs:
 
       - name: Import live database
         run: |
-          mkdir -p /tmp/db-import
-          tar -xzf "$HOME/pantheon-local-copies/db/${{ vars.PANTHEON_PROJECT_NAME }}-db.tgz" -C /tmp/db-import/
-          SQL_FILE=$(find /tmp/db-import -name "*.sql" | head -1)
-          wp db import "$SQL_FILE"
+          zcat "$HOME/pantheon-local-copies/db/${{ vars.PANTHEON_PROJECT_NAME }}-db.tgz" | wp db import -
 
       # -----------------------------------------------------------------
       # Update WordPress dependencies using WP-CLI against real live data.
