@@ -2,13 +2,23 @@ name: Pantheon Maintenance Deploy
 
 on:
   workflow_dispatch: # Allows manual triggering of the workflow
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
 
 jobs:
   deploy:
+
+    if: |
+      github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'maintenance-')
+
     runs-on: ubuntu-latest
 
     env:
       PANTHEON_ENV: "dev"
+      PANTHEON_BRANCH: "master"
 
     steps:
       - name: Checkout code
@@ -41,7 +51,7 @@ jobs:
           terminus connection:set ${{ vars.PANTHEON_PROJECT_NAME }}.${{ env.PANTHEON_ENV }} git
 
           # Get Pantheon Git URL and set it as a remote
-          export PANTHEON_GIT_URL=$(terminus connection:info ${{ secrets.PANTHEON_SITE_NAME }}.${{ env.PANTHEON_ENV }} --field=git_url)
+          export PANTHEON_GIT_URL=$(terminus connection:info ${{ vars.PANTHEON_PROJECT_NAME }}.${{ env.PANTHEON_ENV }} --field=git_url)
           git remote add pantheon $PANTHEON_GIT_URL
 
           echo "PANTHEON_GIT_URL=$PANTHEON_GIT_URL" >> $GITHUB_ENV
@@ -68,18 +78,18 @@ jobs:
         run: |
           # Fetch branches from Pantheon
           git branch
-          git checkout ${{ env.PANTHEON_ENV }} || git checkout -b ${{ env.PANTHEON_ENV }}
+          git checkout ${{ env.PANTHEON_BRANCH }} || git checkout -b ${{ env.PANTHEON_BRANCH }}
 
           git fetch --all
-          git branch --set-upstream-to=pantheon/${{ env.PANTHEON_ENV }}
-          git pull pantheon ${{ env.PANTHEON_ENV }} --no-rebase
+          git branch --set-upstream-to=pantheon/${{ env.PANTHEON_BRANCH }}
+          git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase
 
           # Debug: Check the status before adding files
           # git status
           # git diff
           # git diff --staged
 
-          git push pantheon ${{ env.PANTHEON_ENV }}
+          git push pantheon ${{ env.PANTHEON_BRANCH }}
           exit 0  # Ensure GitHub Actions doesn't treat this as a failure
 
       - name: Remove the last SSH Key we Added to Pantheon
