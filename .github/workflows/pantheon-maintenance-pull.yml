@@ -144,9 +144,6 @@ jobs:
           fi
           echo "version=$AFTER" >> "$GITHUB_OUTPUT"
 
-      - name: Restore local workflow files
-        run: git checkout ORIG_HEAD -- .github/
-
       - name: Check for changes
         id: changes
         run: |
@@ -160,7 +157,7 @@ jobs:
       - name: Commit changes
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git add -A
+          git add -- ':!.github/workflows/'
           git commit -m "Automated maintenance ${{ steps.vars.outputs.DATE }}"
 
       - name: Push maintenance branch
