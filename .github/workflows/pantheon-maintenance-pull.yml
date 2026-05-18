@@ -177,7 +177,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
-        run: git checkout wp-config-local.php
+        run: rm -f wp-config-local.php
 
       - name: Check for changes
         id: changes
