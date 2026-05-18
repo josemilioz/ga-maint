@@ -108,7 +108,7 @@ jobs:
           # Pull the resulting commits from Pantheon into our branch.
           # Since we branched from pantheon/master, this is always a fast-forward.
           git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase
-          git checkout -- .github/workflows
+          git checkout ORIG_HEAD -- .github/workflows/
 
           AFTER=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
           if [ "$BEFORE" != "$AFTER" ]; then
