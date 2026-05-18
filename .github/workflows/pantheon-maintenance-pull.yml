@@ -93,20 +93,34 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          OUTPUT=$(wp plugin update --all --format=table 2>&1 || true)
+          OUTPUT=$(wp plugin update --all --format=json --quiet 2>/dev/null || echo '[]')
+          TABLE=$(printf '%s' "$OUTPUT" | jq -r '
+            if (type != "array") or (length == 0) then "_No plugins were updated._"
+            else
+              "| Plugin | Old | New | Status |\n|--------|-----|-----|--------|\n" +
+              ([.[] | "| \(.name) | \(.version) | \(.update_version) | \(.status) |"] | join("\n"))
+            end
+          ' 2>/dev/null || echo "_No plugins were updated._")
           {
             echo "table<<WPCLI_DELIM"
-            echo "$OUTPUT"
+            printf '%s\n' "$TABLE"
             echo "WPCLI_DELIM"
           } >> "$GITHUB_OUTPUT"
 
       - name: Update themes
         id: theme_update
         run: |
-          OUTPUT=$(wp theme update --all --format=table 2>&1 || true)
+          OUTPUT=$(wp theme update --all --format=json --quiet 2>/dev/null || echo '[]')
+          TABLE=$(printf '%s' "$OUTPUT" | jq -r '
+            if (type != "array") or (length == 0) then "_No themes were updated._"
+            else
+              "| Theme | Old | New | Status |\n|-------|-----|-----|--------|\n" +
+              ([.[] | "| \(.name) | \(.version) | \(.update_version) | \(.status) |"] | join("\n"))
+            end
+          ' 2>/dev/null || echo "_No themes were updated._")
           {
             echo "table<<WPCLI_DELIM"
-            echo "$OUTPUT"
+            printf '%s\n' "$TABLE"
             echo "WPCLI_DELIM"
           } >> "$GITHUB_OUTPUT"
 
@@ -169,7 +183,7 @@ jobs:
             CORE_LINE="No update — already at **${CORE_VERSION}**"
           fi
 
-          PR_BODY="$(printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n```\n%s\n```\n\n## Themes\n```\n%s\n```' \
+          PR_BODY="$(printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n%s\n\n## Themes\n%s' \
             "$MONTH_YEAR" "$CORE_LINE" "$PLUGIN_TABLE" "$THEME_TABLE")"
 
           gh pr create \
