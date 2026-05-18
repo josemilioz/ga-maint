@@ -108,9 +108,12 @@ jobs:
           # Pull the resulting commits from Pantheon into our branch.
           # Since we branched from pantheon/master, this is always a fast-forward.
           git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase
-          # Squash the Pantheon commits out of the branch so no .github/workflows/
-          # changes ever reach the GitHub push. All file changes stay staged.
+          # Squash the Pantheon commits down to a single point so no .github/
+          # changes reach the GitHub push. Reset stages all Pantheon file changes;
+          # restore --staged then drops .github/ from the index so it can't sneak
+          # into the commit even if Pantheon's repo contains those files.
           git reset --soft "$(git merge-base origin/${{ github.event.repository.default_branch }} HEAD)"
+          git restore --staged .github/ 2>/dev/null || true
 
           AFTER=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
           if [ "$BEFORE" != "$AFTER" ]; then
