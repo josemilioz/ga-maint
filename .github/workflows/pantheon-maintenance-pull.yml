@@ -102,13 +102,13 @@ jobs:
           BEFORE=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
 
           terminus upstream:updates:apply \
-            --updatedb \
             --accept-upstream \
             -- ${{ vars.PANTHEON_PROJECT_NAME }}.${{ env.PANTHEON_ENV }}
 
           # Pull the resulting commits from Pantheon into our branch.
           # Since we branched from pantheon/master, this is always a fast-forward.
           git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase
+          git checkout -- .github/workflows
 
           AFTER=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
           if [ "$BEFORE" != "$AFTER" ]; then
@@ -177,7 +177,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
-        run: rm -f wp-config-local.php
+        run: git checkout wp-config-local.php
 
       - name: Check for changes
         id: changes
