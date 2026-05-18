@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  workflows: write
 
 jobs:
   maintenance:
@@ -143,6 +144,9 @@ jobs:
             echo "updated=false" >> "$GITHUB_OUTPUT"
           fi
           echo "version=$AFTER" >> "$GITHUB_OUTPUT"
+
+      - name: Restore local workflow files
+        run: git checkout ORIG_HEAD -- .github/
 
       - name: Check for changes
         id: changes
