@@ -93,12 +93,12 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          OUTPUT=$(wp plugin update --all --format=json --quiet 2>/dev/null || echo '[]')
+          OUTPUT=$(wp plugin update --all --format=json 2>/dev/null || echo '[]')
           TABLE=$(printf '%s' "$OUTPUT" | jq -r '
             if (type != "array") or (length == 0) then "_No plugins were updated._"
             else
               "| Plugin | Old | New | Status |\n|--------|-----|-----|--------|\n" +
-              ([.[] | "| \(.name) | \(.version) | \(.update_version) | \(.status) |"] | join("\n"))
+              ([.[] | "| \(.name) | \(.version // .old_version // "—") | \(.update_version // .new_version // "—") | \(.status) |"] | join("\n"))
             end
           ' 2>/dev/null || echo "_No plugins were updated._")
           {
@@ -110,12 +110,12 @@ jobs:
       - name: Update themes
         id: theme_update
         run: |
-          OUTPUT=$(wp theme update --all --format=json --quiet 2>/dev/null || echo '[]')
+          OUTPUT=$(wp theme update --all --format=json 2>/dev/null || echo '[]')
           TABLE=$(printf '%s' "$OUTPUT" | jq -r '
             if (type != "array") or (length == 0) then "_No themes were updated._"
             else
               "| Theme | Old | New | Status |\n|-------|-----|-----|--------|\n" +
-              ([.[] | "| \(.name) | \(.version) | \(.update_version) | \(.status) |"] | join("\n"))
+              ([.[] | "| \(.name) | \(.version // .old_version // "—") | \(.update_version // .new_version // "—") | \(.status) |"] | join("\n"))
             end
           ' 2>/dev/null || echo "_No themes were updated._")
           {
