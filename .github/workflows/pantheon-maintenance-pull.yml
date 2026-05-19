@@ -88,8 +88,7 @@ jobs:
       - name: Create maintenance branch
         run: |
           git fetch pantheon
-          git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}"
-          #pantheon/${{ env.PANTHEON_BRANCH }}
+          git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
 
       # -----------------------------------------------------------------
       # Apply WordPress core updates via Pantheon's own upstream mechanism.
