@@ -88,13 +88,16 @@ jobs:
       - name: Create maintenance branch
         run: |
           git fetch pantheon
-          git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
+          git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}"
+          #pantheon/${{ env.PANTHEON_BRANCH }}
 
       # -----------------------------------------------------------------
       # Apply WordPress core updates via Pantheon's own upstream mechanism.
-      # terminus resolves conflicts with --accept-upstream; if it exits
-      # non-zero (unresolvable conflict or API error) the workflow fails here
-      # and we never push a broken state anywhere.
+      # We branch from pantheon/master to preserve shared history, then
+      # pull the new upstream commits. Before pushing to GitHub we strip
+      # .github/ from every commit GitHub hasn't seen yet using
+      # filter-branch, so the workflow-file permission check never fires.
+      # Commit metadata (author, date, message) is preserved.
       # -----------------------------------------------------------------
       - name: Apply WordPress core upstream updates
         id: core_update
@@ -105,15 +108,15 @@ jobs:
             --accept-upstream \
             -- ${{ vars.PANTHEON_PROJECT_NAME }}.${{ env.PANTHEON_ENV }}
 
-          # Pull the resulting commits from Pantheon into our branch.
-          # Since we branched from pantheon/master, this is always a fast-forward.
           git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase
-          # Squash the Pantheon commits down to a single point so no .github/
-          # changes reach the GitHub push. Reset stages all Pantheon file changes;
-          # restore --staged then drops .github/ from the index so it can't sneak
-          # into the commit even if Pantheon's repo contains those files.
-          git reset --soft "$(git merge-base origin/${{ github.event.repository.default_branch }} HEAD)"
-          git restore --staged .github/ 2>/dev/null || true
+
+          # Rewrite every commit GitHub doesn't already have to remove
+          # .github/ — keeps Pantheon history intact, just strips the
+          # directory that triggers the workflow-permission check.
+          BASE=$(git merge-base "origin/${{ github.event.repository.default_branch }}" HEAD)
+          git filter-branch --force --index-filter \
+            'git rm -rf --cached --ignore-unmatch .github/' \
+            -- "$BASE"..HEAD
 
           AFTER=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
           if [ "$BEFORE" != "$AFTER" ]; then
@@ -207,7 +210,7 @@ jobs:
       - name: Push maintenance branch
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git push --set-upstream origin "${{ steps.vars.outputs.BRANCH_NAME }}"
+          git push origin "${{ steps.vars.outputs.BRANCH_NAME }}"
 
       - name: Create pull request
         if: steps.changes.outputs.has_changes == 'true'
