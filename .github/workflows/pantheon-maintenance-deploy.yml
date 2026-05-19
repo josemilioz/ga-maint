@@ -76,21 +76,8 @@ jobs:
 
       - name: Push code to Pantheon
         run: |
-          # Fetch branches from Pantheon
-          git branch
-          git checkout ${{ env.PANTHEON_BRANCH }} || git checkout -b ${{ env.PANTHEON_BRANCH }}
-
-          git fetch --all
-          git branch --set-upstream-to=pantheon/${{ env.PANTHEON_BRANCH }}
-          git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase -X ours
-
-          # Debug: Check the status before adding files
-          # git status
-          # git diff
-          # git diff --staged
-
-          git push pantheon ${{ env.PANTHEON_BRANCH }}
-          # exit 0  # Ensure GitHub Actions doesn't treat this as a failure
+          git fetch pantheon
+          git push --force pantheon HEAD:refs/heads/${{ env.PANTHEON_BRANCH }}
 
       - name: Remove the last SSH Key we Added to Pantheon
         if: always()
