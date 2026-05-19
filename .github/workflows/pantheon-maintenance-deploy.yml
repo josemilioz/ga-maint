@@ -82,17 +82,18 @@ jobs:
 
           git fetch --all
           git branch --set-upstream-to=pantheon/${{ env.PANTHEON_BRANCH }}
-          git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase
+          git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase -X ours
 
           # Debug: Check the status before adding files
           # git status
           # git diff
           # git diff --staged
 
-          git push -X ours pantheon ${{ env.PANTHEON_BRANCH }}
-          exit 0  # Ensure GitHub Actions doesn't treat this as a failure
+          git push pantheon ${{ env.PANTHEON_BRANCH }}
+          # exit 0  # Ensure GitHub Actions doesn't treat this as a failure
 
       - name: Remove the last SSH Key we Added to Pantheon
+        if: always()
         run: |
           # grab the ID and use it to remove the key
           export COLUMNS=256 # So the table displayed by terminus won't split into useless lines
