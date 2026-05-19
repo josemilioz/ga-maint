@@ -12,7 +12,7 @@ jobs:
   deploy:
 
     if: |
-      github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'maintenance-')
+      github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'maintenance-') || github.event_name == 'workflow_dispatch'
 
     runs-on: ubuntu-latest
 
