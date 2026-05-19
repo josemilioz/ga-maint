@@ -22,14 +22,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Ensure full history is fetched
 
-      - name: Set up PHP 8.3
+      - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.3
+          php-version: '8.2'
           extensions: mbstring, curl, xml, zip, mysql
 
       - name: Install Terminus
@@ -89,7 +89,7 @@ jobs:
           # git diff
           # git diff --staged
 
-          git push pantheon ${{ env.PANTHEON_BRANCH }}
+          git push -X ours pantheon ${{ env.PANTHEON_BRANCH }}
           exit 0  # Ensure GitHub Actions doesn't treat this as a failure
 
       - name: Remove the last SSH Key we Added to Pantheon

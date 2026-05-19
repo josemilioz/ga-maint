@@ -235,7 +235,7 @@ jobs:
           gh pr create \
             --base "$DEFAULT_BRANCH" \
             --head "$BRANCH_NAME" \
-            --title "maintenance for $MONTH_YEAR" \
+            --title "Maintenance for $MONTH_YEAR" \
             --body "$PR_BODY"
 
       - name: Remove SSH Key
