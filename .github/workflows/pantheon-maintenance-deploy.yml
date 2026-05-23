@@ -75,6 +75,7 @@ jobs:
           # ssh-keyscan -H "$PANTHEON_SSH_KEY_DOMAIN" >> ~/.ssh/known_hosts
 
       - name: Push code to Pantheon
+        id: push
         run: |
           git fetch pantheon
           git push --force pantheon HEAD:refs/heads/${{ env.PANTHEON_BRANCH }}
@@ -96,3 +97,63 @@ jobs:
               fi
             done
           fi
+
+      - name: Notify Slack - Deployed
+        if: steps.push.result == 'success'
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg ch  "$SLACK_CHANNEL" \
+            --arg url "$RUN_URL" \
+            --arg pn  "$PROJECT_NAME" \
+            '{
+              channel: $ch,
+              text: "✅ Code deployed to Pantheon dev!",
+              blocks: [{
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: "✅ *\($pn) is ready in Pantheon!*\nThe maintenance update was successfully pushed to the Pantheon dev environment.\n🚀 You can now promote it to live from the Pantheon dashboard.\n🔗 <\($url)|View workflow run>"
+                }
+              }]
+            }')
+
+          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"
+
+      - name: Notify Slack - Failure
+        if: failure()
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg ch   "$SLACK_CHANNEL" \
+            --arg url  "$RUN_URL" \
+            --arg repo "$REPO" \
+            --arg pn   "$PROJECT_NAME" \
+            '{
+              channel: $ch,
+              text: "🚨 Deploy to Pantheon failed!",
+              blocks: [{
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: "🚨 *Deploy to Pantheon failed for \($pn)!*\n📋 *Repository:* \($repo)\n🔗 <\($url)|View failed run>\n👀 Check the logs before retrying."
+                }
+              }]
+            }')
+
+          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"

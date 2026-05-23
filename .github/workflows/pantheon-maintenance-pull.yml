@@ -274,6 +274,7 @@ jobs:
           CORE_VERSION: ${{ steps.core_update.outputs.version }}
           PLUGIN_COUNT: ${{ steps.plugin_update.outputs.count }}
           THEME_COUNT: ${{ steps.theme_update.outputs.count }}
+          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
           [ "$CORE_UPDATED" = "true" ] \
             && CORE_MSG="Updated to *${CORE_VERSION}*" \
@@ -292,6 +293,7 @@ jobs:
             --arg cm  "$CORE_MSG" \
             --arg pm  "$PLUGIN_MSG" \
             --arg tm  "$THEME_MSG" \
+            --arg pn  "$PROJECT_NAME" \
             '{
               channel: $ch,
               text: "🚀 Maintenance PR ready for review!",
@@ -299,7 +301,7 @@ jobs:
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "🚀 *Maintenance PR ready for review!*\n📅 *Maintenance for:* \($my)\n⚙️ *WordPress core:* \($cm)\n🧩 *Plugins:* \($pm)\n🎨 *Themes:* \($tm)\n🔗 <\($url)|View Pull Request>"
+                  text: "🚀 *Maintenance PR ready for review!*\n🏗️ *Project:* \($pn)\n📅 *Maintenance for:* \($my)\n⚙️ *WordPress core:* \($cm)\n🧩 *Plugins:* \($pm)\n🎨 *Themes:* \($tm)\n🔗 <\($url)|View Pull Request>"
                 }
               }]
             }')
@@ -315,10 +317,12 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
           MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
+          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
           PAYLOAD=$(jq -n \
             --arg ch "$SLACK_CHANNEL" \
             --arg my "$MONTH_YEAR" \
+            --arg pn "$PROJECT_NAME" \
             '{
               channel: $ch,
               text: "ℹ️ No maintenance needed this month.",
@@ -326,7 +330,7 @@ jobs:
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "ℹ️ *No maintenance needed for \($my).*\n✅ WordPress core, plugins and themes are all up to date."
+                  text: "ℹ️ *No maintenance needed for \($my).*\n🏗️ *Project:* \($pn)\n✅ WordPress core, plugins and themes are all up to date."
                 }
               }]
             }')
@@ -343,11 +347,13 @@ jobs:
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPO: ${{ github.repository }}
+          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
           PAYLOAD=$(jq -n \
             --arg ch   "$SLACK_CHANNEL" \
             --arg url  "$RUN_URL" \
             --arg repo "$REPO" \
+            --arg pn   "$PROJECT_NAME" \
             '{
               channel: $ch,
               text: "🚨 Maintenance workflow failed!",
@@ -355,7 +361,7 @@ jobs:
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "🚨 *Maintenance workflow failed!*\n📋 *Repository:* \($repo)\n🔗 <\($url)|View failed run>\n👀 Check the logs and fix before the next cycle."
+                  text: "🚨 *Maintenance workflow failed!*\n🏗️ *Project:* \($pn)\n📋 *Repository:* \($repo)\n🔗 <\($url)|View failed run>\n👀 Check the logs and fix before the next cycle."
                 }
               }]
             }')
