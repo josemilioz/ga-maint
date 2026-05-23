@@ -160,10 +160,12 @@ jobs:
               ([.[] | "| \(.name) | \(.version // .old_version // "—") | \(.update_version // .new_version // "—") | \(.status) |"] | join("\n"))
             end
           ' 2>/dev/null || echo "_No plugins were updated._")
+          COUNT=$(printf '%s' "$OUTPUT" | jq 'if type == "array" then length else 0 end' 2>/dev/null || echo 0)
           {
             echo "table<<WPCLI_DELIM"
             printf '%s\n' "$TABLE"
             echo "WPCLI_DELIM"
+            echo "count=$COUNT"
           } >> "$GITHUB_OUTPUT"
 
       - name: Update themes
@@ -177,10 +179,12 @@ jobs:
               ([.[] | "| \(.name) | \(.version // .old_version // "—") | \(.update_version // .new_version // "—") | \(.status) |"] | join("\n"))
             end
           ' 2>/dev/null || echo "_No themes were updated._")
+          COUNT=$(printf '%s' "$OUTPUT" | jq 'if type == "array" then length else 0 end' 2>/dev/null || echo 0)
           {
             echo "table<<WPCLI_DELIM"
             printf '%s\n' "$TABLE"
             echo "WPCLI_DELIM"
+            echo "count=$COUNT"
           } >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
@@ -213,6 +217,7 @@ jobs:
 
       - name: Create pull request
         if: steps.changes.outputs.has_changes == 'true'
+        id: create_pr
         env:
           GH_TOKEN: ${{ github.token }}
           PLUGIN_TABLE: ${{ steps.plugin_update.outputs.table }}
@@ -229,14 +234,18 @@ jobs:
             CORE_LINE="No update — already at **${CORE_VERSION}**"
           fi
 
+          PLUGIN_TABLE="${PLUGIN_TABLE:-_No plugins were updated._}"
+          THEME_TABLE="${THEME_TABLE:-_No themes were updated._}"
+
           PR_BODY="$(printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n%s\n\n## Themes\n%s' \
             "$MONTH_YEAR" "$CORE_LINE" "$PLUGIN_TABLE" "$THEME_TABLE")"
 
-          gh pr create \
+          PR_URL=$(gh pr create \
             --base "$DEFAULT_BRANCH" \
             --head "$BRANCH_NAME" \
             --title "Maintenance for $MONTH_YEAR" \
-            --body "$PR_BODY"
+            --body "$PR_BODY")
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
 
       - name: Remove SSH Key
         if: always()
@@ -253,3 +262,105 @@ jobs:
         if: steps.changes.outputs.has_changes == 'false'
         run: |
           echo "No updates were available. No pull request created."
+
+      - name: Notify Slack - PR Created
+        if: steps.create_pr.result == 'success'
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
+          PR_URL: ${{ steps.create_pr.outputs.pr_url }}
+          MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
+          CORE_UPDATED: ${{ steps.core_update.outputs.updated }}
+          CORE_VERSION: ${{ steps.core_update.outputs.version }}
+          PLUGIN_COUNT: ${{ steps.plugin_update.outputs.count }}
+          THEME_COUNT: ${{ steps.theme_update.outputs.count }}
+        run: |
+          [ "$CORE_UPDATED" = "true" ] \
+            && CORE_MSG="Updated to *${CORE_VERSION}*" \
+            || CORE_MSG="Already at *${CORE_VERSION}*"
+          [ "${PLUGIN_COUNT:-0}" -gt 0 ] \
+            && PLUGIN_MSG="${PLUGIN_COUNT} updated" \
+            || PLUGIN_MSG="No updates"
+          [ "${THEME_COUNT:-0}" -gt 0 ] \
+            && THEME_MSG="${THEME_COUNT} updated" \
+            || THEME_MSG="No updates"
+
+          PAYLOAD=$(jq -n \
+            --arg ch  "$SLACK_CHANNEL" \
+            --arg url "$PR_URL" \
+            --arg my  "$MONTH_YEAR" \
+            --arg cm  "$CORE_MSG" \
+            --arg pm  "$PLUGIN_MSG" \
+            --arg tm  "$THEME_MSG" \
+            '{
+              channel: $ch,
+              text: "🚀 Maintenance PR ready for review!",
+              blocks: [{
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: "🚀 *Maintenance PR ready for review!*\n📅 *Maintenance for:* \($my)\n⚙️ *WordPress core:* \($cm)\n🧩 *Plugins:* \($pm)\n🎨 *Themes:* \($tm)\n🔗 <\($url)|View Pull Request>"
+                }
+              }]
+            }')
+
+          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"
+
+      - name: Notify Slack - No Changes
+        if: steps.changes.outputs.has_changes == 'false'
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
+          MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg ch "$SLACK_CHANNEL" \
+            --arg my "$MONTH_YEAR" \
+            '{
+              channel: $ch,
+              text: "ℹ️ No maintenance needed this month.",
+              blocks: [{
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: "ℹ️ *No maintenance needed for \($my).*\n✅ WordPress core, plugins and themes are all up to date."
+                }
+              }]
+            }')
+
+          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"
+
+      - name: Notify Slack - Failure
+        if: failure()
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg ch   "$SLACK_CHANNEL" \
+            --arg url  "$RUN_URL" \
+            --arg repo "$REPO" \
+            '{
+              channel: $ch,
+              text: "🚨 Maintenance workflow failed!",
+              blocks: [{
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: "🚨 *Maintenance workflow failed!*\n📋 *Repository:* \($repo)\n🔗 <\($url)|View failed run>\n👀 Check the logs and fix before the next cycle."
+                }
+              }]
+            }')
+
+          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"
