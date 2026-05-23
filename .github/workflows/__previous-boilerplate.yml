@@ -1,4 +1,4 @@
-name: JEZZ to Pantheon
+name: __JEZZ to Pantheon
 on:
   workflow_dispatch:
   # push:
