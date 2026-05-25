@@ -90,32 +90,12 @@ jobs:
           git fetch pantheon
           git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
 
-      # -----------------------------------------------------------------
-      # Apply WordPress core updates via Pantheon's own upstream mechanism.
-      # We branch from pantheon/master to preserve shared history, then
-      # pull the new upstream commits. Before pushing to GitHub we strip
-      # .github/ from every commit GitHub hasn't seen yet using
-      # filter-branch, so the workflow-file permission check never fires.
-      # Commit metadata (author, date, message) is preserved.
-      # -----------------------------------------------------------------
       - name: Apply WordPress core upstream updates
         id: core_update
         run: |
           BEFORE=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
 
-          terminus upstream:updates:apply \
-            --accept-upstream \
-            -- ${{ vars.PANTHEON_PROJECT_NAME }}.${{ env.PANTHEON_ENV }}
-
-          git pull pantheon ${{ env.PANTHEON_BRANCH }} --no-rebase
-
-          # Rewrite every commit GitHub doesn't already have to remove
-          # .github/ — keeps Pantheon history intact, just strips the
-          # directory that triggers the workflow-permission check.
-          BASE=$(git merge-base "origin/${{ github.event.repository.default_branch }}" HEAD)
-          git filter-branch --force --index-filter \
-            'git rm -rf --cached --ignore-unmatch .github/' \
-            -- "$BASE"..HEAD
+          git pull -X theirs https://github.com/pantheon-systems/WordPress --no-rebase --no-edit
 
           AFTER=$(php -r "include 'wp-includes/version.php'; echo \$wp_version;")
           if [ "$BEFORE" != "$AFTER" ]; then
