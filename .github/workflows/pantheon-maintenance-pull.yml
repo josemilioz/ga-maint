@@ -257,7 +257,7 @@ jobs:
           echo "No updates were available. No pull request created."
 
       - name: Notify Slack - PR Created
-        if: always() && steps.create_pr.result == 'success'
+        if: always() && steps.create_pr.outputs.pr_url != ''
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
