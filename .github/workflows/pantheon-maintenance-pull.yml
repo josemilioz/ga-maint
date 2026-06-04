@@ -105,6 +105,17 @@ jobs:
           fi
           echo "version=$AFTER" >> "$GITHUB_OUTPUT"
 
+      - name: Remove upstream workflow files
+        if: steps.core_update.outputs.updated == 'true'
+        run: |
+          FOREIGN=$(comm -23 \
+            <(git ls-tree -r --name-only HEAD -- .github/workflows/ | sort) \
+            <(git ls-tree -r --name-only "origin/${{ github.event.repository.default_branch }}" -- .github/workflows/ | sort))
+          if [ -n "$FOREIGN" ]; then
+            echo "$FOREIGN" | xargs git rm -f
+            git commit -m "Remove upstream workflow files"
+          fi
+
       - name: Download live database from Pantheon
         run: terminus ldb "${{ vars.PANTHEON_PROJECT_NAME }}"
 
