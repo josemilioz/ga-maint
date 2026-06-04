@@ -299,10 +299,12 @@ jobs:
               }]
             }')
 
-          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+          RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
             -H "Authorization: Bearer ${SLACK_TOKEN}" \
             -H "Content-Type: application/json" \
-            --data "$PAYLOAD"
+            --data "$PAYLOAD")
+          echo "Slack response: $RESPONSE"
+          echo "$RESPONSE" | jq -e '.ok == true' || { echo "Slack API error: $(echo "$RESPONSE" | jq -r '.error')"; exit 1; }
 
       - name: Notify Slack - No Changes
         if: steps.changes.outputs.has_changes == 'false'
@@ -328,10 +330,12 @@ jobs:
               }]
             }')
 
-          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+          RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
             -H "Authorization: Bearer ${SLACK_TOKEN}" \
             -H "Content-Type: application/json" \
-            --data "$PAYLOAD"
+            --data "$PAYLOAD")
+          echo "Slack response: $RESPONSE"
+          echo "$RESPONSE" | jq -e '.ok == true' || { echo "Slack API error: $(echo "$RESPONSE" | jq -r '.error')"; exit 1; }
 
       - name: Notify Slack - Failure
         if: failure()
@@ -359,7 +363,9 @@ jobs:
               }]
             }')
 
-          curl -s -f -X POST https://slack.com/api/chat.postMessage \
+          RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
             -H "Authorization: Bearer ${SLACK_TOKEN}" \
             -H "Content-Type: application/json" \
-            --data "$PAYLOAD"
+            --data "$PAYLOAD")
+          echo "Slack response: $RESPONSE"
+          echo "$RESPONSE" | jq -e '.ok == true' || { echo "Slack API error: $(echo "$RESPONSE" | jq -r '.error')"; exit 1; }
