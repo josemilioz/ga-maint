@@ -90,6 +90,9 @@ jobs:
           git fetch pantheon
           git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
 
+      - name: Snapshot workflow files
+        run: git ls-tree -r --name-only HEAD -- .github/workflows/ | sort > /tmp/our_workflows.txt
+
       - name: Apply WordPress core upstream updates
         id: core_update
         run: |
@@ -106,11 +109,10 @@ jobs:
           echo "version=$AFTER" >> "$GITHUB_OUTPUT"
 
       - name: Remove upstream workflow files
-        if: steps.core_update.outputs.updated == 'true'
         run: |
           FOREIGN=$(comm -23 \
             <(git ls-tree -r --name-only HEAD -- .github/workflows/ | sort) \
-            <(git ls-tree -r --name-only "origin/${{ github.event.repository.default_branch }}" -- .github/workflows/ | sort))
+            /tmp/our_workflows.txt)
           if [ -n "$FOREIGN" ]; then
             echo "$FOREIGN" | xargs git rm -f
             git commit -m "Remove upstream workflow files"
