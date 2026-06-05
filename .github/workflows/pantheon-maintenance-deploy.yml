@@ -20,6 +20,7 @@ jobs:
       PANTHEON_ENV: "dev"
       PANTHEON_BRANCH: "master"
 
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -79,6 +80,10 @@ jobs:
         run: |
           git fetch pantheon
           git push --force pantheon HEAD:refs/heads/${{ env.PANTHEON_BRANCH }}
+
+      - name: Push site all the way to the Test environment
+        run: |
+          terminus env:deploy ${{ vars.PANTHEON_PROJECT_NAME }}.test --note="chore: automated maintenance $(date +'%Y-%m-%d')" --yes
 
       - name: Remove the last SSH Key we Added to Pantheon
         if: always()
