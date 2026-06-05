@@ -86,6 +86,11 @@ jobs:
         run: |
           terminus env:deploy ${{ vars.PANTHEON_PROJECT_NAME }}.test --note="chore: automated maintenance $(date +'%Y-%m-%d')" --yes
 
+      - name: Run database updates
+        run: |
+          terminus wp ${{ vars.PANTHEON_PROJECT_NAME }}.dev -- core update-db
+          terminus wp ${{ vars.PANTHEON_PROJECT_NAME }}.test -- core update-db
+
       - name: Remove the last SSH Key we Added to Pantheon
         if: always()
         run: |
