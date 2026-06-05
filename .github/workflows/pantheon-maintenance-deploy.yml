@@ -125,7 +125,7 @@ jobs:
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "✅ *\($pn) is ready in Pantheon!*\nThe maintenance update was successfully pushed to the Pantheon dev environment.\n🚀 You can now promote it to live from the Pantheon dashboard.\n🌐 <\($test)|View test environment>\n🔗 <\($url)|View workflow run>"
+                  text: "✅ *\($pn) is ready in Pantheon!*\nThe maintenance update was successfully deployed all the way to the test environment.\n🚀 You can now promote it to live from the Pantheon dashboard.\n🌐 <\($test)|View test environment>\n🔗 <\($url)|View workflow run>"
                 }
               }]
             }')
