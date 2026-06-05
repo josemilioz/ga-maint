@@ -80,6 +80,7 @@ jobs:
         run: |
           git fetch pantheon
           git push --force pantheon HEAD:refs/heads/${{ env.PANTHEON_BRANCH }}
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
       - name: Push site all the way to the Test environment
         run: |
@@ -104,7 +105,7 @@ jobs:
           fi
 
       - name: Notify Slack - Deployed
-        if: always() && steps.push.result == 'success'
+        if: always() && steps.push.outputs.pushed == 'true'
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
