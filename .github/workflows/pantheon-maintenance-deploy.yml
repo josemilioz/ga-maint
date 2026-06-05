@@ -111,11 +111,13 @@ jobs:
           SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
+          TEST_URL: https://test-${{ vars.PANTHEON_PROJECT_NAME }}.pantheonsite.io
         run: |
           PAYLOAD=$(jq -n \
-            --arg ch  "$SLACK_CHANNEL" \
-            --arg url "$RUN_URL" \
-            --arg pn  "$PROJECT_NAME" \
+            --arg ch   "$SLACK_CHANNEL" \
+            --arg url  "$RUN_URL" \
+            --arg pn   "$PROJECT_NAME" \
+            --arg test "$TEST_URL" \
             '{
               channel: $ch,
               text: "✅ Code deployed to Pantheon dev!",
@@ -123,7 +125,7 @@ jobs:
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "✅ *\($pn) is ready in Pantheon!*\nThe maintenance update was successfully pushed to the Pantheon dev environment.\n🚀 You can now promote it to live from the Pantheon dashboard.\n🔗 <\($url)|View workflow run>"
+                  text: "✅ *\($pn) is ready in Pantheon!*\nThe maintenance update was successfully pushed to the Pantheon dev environment.\n🚀 You can now promote it to live from the Pantheon dashboard.\n🌐 <\($test)|View test environment>\n🔗 <\($url)|View workflow run>"
                 }
               }]
             }')
