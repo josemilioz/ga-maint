@@ -1,7 +1,11 @@
 name: Pantheon Maintenance Deploy
 
 on:
-  workflow_dispatch: # Allows manual triggering of the workflow
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to delete multidev for (valid only for testing)'
+        required: false
   pull_request:
     types:
       - closed
@@ -92,9 +96,10 @@ jobs:
           terminus wp ${{ vars.PANTHEON_PROJECT_NAME }}.test -- core update-db
 
       - name: Delete PR multidev
-        if: github.event_name == 'pull_request'
+        if: github.event.pull_request.number != '' || inputs.pr_number != ''
         run: |
-          terminus multidev:delete ${{ vars.PANTHEON_PROJECT_NAME }}.pr-${{ github.event.pull_request.number }} --delete-branch --yes
+          PR_NUMBER="${{ github.event.pull_request.number || inputs.pr_number }}"
+          terminus multidev:delete ${{ vars.PANTHEON_PROJECT_NAME }}.pr-${PR_NUMBER} --delete-branch --yes
 
       - name: Remove the last SSH Key we Added to Pantheon
         if: always()
