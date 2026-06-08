@@ -194,24 +194,6 @@ jobs:
         run: |
           git push origin "${{ steps.vars.outputs.BRANCH_NAME }}"
 
-      - name: Set up maintenance multidev
-        if: steps.changes.outputs.has_changes == 'true'
-        id: multidev
-        run: |
-          SITE="${{ vars.PANTHEON_PROJECT_NAME }}"
-          MULTIDEV_URL="https://maintenance-${SITE}.pantheonsite.io"
-
-          if terminus multidev:list "$SITE" --format=list 2>/dev/null | grep -q '^maintenance$'; then
-            git push pantheon HEAD:maintenance --force
-            terminus env:clone-content "$SITE".live maintenance --yes
-          else
-            terminus multidev:create "$SITE".live maintenance --yes
-            git push pantheon HEAD:maintenance --force
-          fi
-
-          terminus env:clear-cache "$SITE".maintenance
-          echo "url=$MULTIDEV_URL" >> "$GITHUB_OUTPUT"
-
       - name: Create pull request
         if: steps.changes.outputs.has_changes == 'true'
         id: create_pr
@@ -221,7 +203,6 @@ jobs:
           THEME_OUTPUT: ${{ steps.theme_update.outputs.output }}
           CORE_UPDATED: ${{ steps.core_update.outputs.updated }}
           CORE_VERSION: ${{ steps.core_update.outputs.version }}
-          MULTIDEV_URL: ${{ steps.multidev.outputs.url }}
           MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
           BRANCH_NAME: ${{ steps.vars.outputs.BRANCH_NAME }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -232,15 +213,41 @@ jobs:
             CORE_LINE="No update — already at **${CORE_VERSION}**"
           fi
 
-          PR_BODY="$(printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n```\n%s\n```\n\n## Themes\n```\n%s\n```\n\n## Preview\n[Maintenance environment](%s)' \
-            "$MONTH_YEAR" "$CORE_LINE" "${PLUGIN_OUTPUT:-No output.}" "${THEME_OUTPUT:-No output.}" "$MULTIDEV_URL")"
+          printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n```\n%s\n```\n\n## Themes\n```\n%s\n```' \
+            "$MONTH_YEAR" "$CORE_LINE" "${PLUGIN_OUTPUT:-No output.}" "${THEME_OUTPUT:-No output.}" > /tmp/pr_body.md
 
           PR_URL=$(gh pr create \
             --base "$DEFAULT_BRANCH" \
             --head "$BRANCH_NAME" \
             --title "Maintenance for $MONTH_YEAR" \
-            --body "$PR_BODY")
+            --body-file /tmp/pr_body.md)
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
           echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Set up PR multidev
+        if: steps.changes.outputs.has_changes == 'true'
+        id: multidev
+        run: |
+          SITE="${{ vars.PANTHEON_PROJECT_NAME }}"
+          MULTIDEV_NAME="pr-${{ steps.create_pr.outputs.pr_number }}"
+          MULTIDEV_URL="https://${MULTIDEV_NAME}-${SITE}.pantheonsite.io"
+
+          terminus multidev:create "$SITE".live "$MULTIDEV_NAME" --yes
+          git push pantheon "HEAD:${MULTIDEV_NAME}" --force
+          terminus env:clear-cache "$SITE"."$MULTIDEV_NAME"
+
+          echo "url=$MULTIDEV_URL" >> "$GITHUB_OUTPUT"
+          echo "name=$MULTIDEV_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Update PR with multidev link
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MULTIDEV_URL: ${{ steps.multidev.outputs.url }}
+        run: |
+          printf '\n## Preview\n[PR environment](%s)\n' "$MULTIDEV_URL" >> /tmp/pr_body.md
+          gh pr edit "${{ steps.create_pr.outputs.pr_number }}" --body-file /tmp/pr_body.md
 
       - name: Remove SSH Key
         if: always()

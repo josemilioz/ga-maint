@@ -91,6 +91,11 @@ jobs:
           terminus wp ${{ vars.PANTHEON_PROJECT_NAME }}.dev -- core update-db
           terminus wp ${{ vars.PANTHEON_PROJECT_NAME }}.test -- core update-db
 
+      - name: Delete PR multidev
+        if: github.event_name == 'pull_request'
+        run: |
+          terminus multidev:delete ${{ vars.PANTHEON_PROJECT_NAME }}.pr-${{ github.event.pull_request.number }} --delete-branch --yes
+
       - name: Remove the last SSH Key we Added to Pantheon
         if: always()
         run: |
