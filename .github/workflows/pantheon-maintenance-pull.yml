@@ -249,6 +249,73 @@ jobs:
           printf '\n## Preview\n[PR environment](%s)\n' "$MULTIDEV_URL" >> /tmp/pr_body.md
           gh pr edit "${{ steps.create_pr.outputs.pr_number }}" --body-file /tmp/pr_body.md
 
+      - name: Notify Teamwork
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          TEAMWORK_SITE_URL: ${{ vars.TEAMWORK_SITE_URL }}
+          TEAMWORK_API_TOKEN: ${{ secrets.TEAMWORK_API_TOKEN }}
+          TEAMWORK_TASK_SEARCH_TERM: ${{ vars.TEAMWORK_TASK_SEARCH_TERM }}
+          TEAMWORK_PROJECT_ID: ${{ vars.TEAMWORK_PROJECT_ID }}
+          TEAMWORK_STAGE_UAT: ${{ vars.TEAMWORK_STAGE_UAT }}
+          TEAMWORK_STAGE_IN_PROGRESS: ${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}
+        run: |
+          BASE_URL="https://${TEAMWORK_SITE_URL}"
+          AUTH=$(printf '%s:x' "$TEAMWORK_API_TOKEN" | base64)
+
+          # Find the open maintenance task
+          TASK_RESPONSE=$(curl -s \
+            -H "Authorization: Basic $AUTH" \
+            "${BASE_URL}/projects/api/v3/tasks.json?searchTerm=${TEAMWORK_TASK_SEARCH_TERM}&projectId=${TEAMWORK_PROJECT_ID}&status=active")
+          TASK_ID=$(printf '%s' "$TASK_RESPONSE" | jq -r '.tasks[0].id // empty')
+
+          if [ -z "$TASK_ID" ]; then
+            echo "No task found, skipping stage move and comment."
+            exit 0
+          fi
+
+          # Get workflows for the project, then stages for the first workflow
+          WORKFLOW_ID=$(curl -s \
+            -H "Authorization: Basic $AUTH" \
+            "${BASE_URL}/projects/api/v3/projects/${TEAMWORK_PROJECT_ID}/workflows.json" \
+            | jq -r '.workflows[0].id // empty')
+
+          if [ -n "$WORKFLOW_ID" ]; then
+            STAGES=$(curl -s \
+              -H "Authorization: Basic $AUTH" \
+              "${BASE_URL}/projects/api/v3/workflows/${WORKFLOW_ID}/stages.json")
+
+            UAT_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "$TEAMWORK_STAGE_UAT" '.stages[] | select(.name == $n) | .id // empty')
+            IP_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "$TEAMWORK_STAGE_IN_PROGRESS" '.stages[] | select(.name == $n) | .id // empty')
+
+            MOVED=false
+            if [ -n "$UAT_STAGE_ID" ]; then
+              HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
+                -H "Authorization: Basic $AUTH" \
+                -H "Content-Type: application/json" \
+                -d "{\"workflowId\": ${WORKFLOW_ID}, \"stageId\": ${UAT_STAGE_ID}, \"positionAfterTask\": -1}" \
+                "${BASE_URL}/projects/api/v3/tasks/${TASK_ID}/workflowstage.json")
+              [ "$HTTP" -ge 200 ] && [ "$HTTP" -lt 300 ] && MOVED=true && echo "Task moved to ${TEAMWORK_STAGE_UAT}."
+            fi
+
+            if [ "$MOVED" = "false" ] && [ -n "$IP_STAGE_ID" ]; then
+              echo "Falling back to ${TEAMWORK_STAGE_IN_PROGRESS}."
+              curl -s -X PUT \
+                -H "Authorization: Basic $AUTH" \
+                -H "Content-Type: application/json" \
+                -d "{\"workflowId\": ${WORKFLOW_ID}, \"stageId\": ${IP_STAGE_ID}, \"positionAfterTask\": -1}" \
+                "${BASE_URL}/projects/api/v3/tasks/${TASK_ID}/workflowstage.json" || true
+            fi
+          fi
+
+          # Post comment with the same content as the PR body
+          COMMENT_JSON=$(jq -n --rawfile body /tmp/pr_body.md '{"comment": {"body": $body, "contentType": "TEXT"}}')
+          curl -s -X POST \
+            -H "Authorization: Basic $AUTH" \
+            -H "Content-Type: application/json" \
+            -d "$COMMENT_JSON" \
+            "${BASE_URL}/tasks/${TASK_ID}/comments.json" || true
+          echo "Comment posted to Teamwork task."
+
       - name: Remove SSH Key
         if: always()
         run: |
@@ -299,7 +366,7 @@ jobs:
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: "🚀 *Maintenance PR ready for review!*\n🏗️ *Project:* \($pn)\n📅 *Maintenance for:* \($my)\n⚙️ *WordPress core:* \($cm)\n🧩 *Plugins:* \($pm)\n🎨 *Themes:* \($tm)\n🌐 <\($mv)|Maintenance environment>\n🔗 <\($url)|View Pull Request>"
+                  text: "🚀 *Maintenance PR ready for review!*\n🏗️ *Project:* \($pn)\n📅 *Maintenance for:* \($my)\n⚙️ *WordPress core:* \($cm)\n🧩 *Plugins:* \($pm)\n🎨 *Themes:* \($tm)\n🌐 <\($mv)|Test environment>\n🔗 <\($url)|View Pull Request>"
                 }
               }]
             }')

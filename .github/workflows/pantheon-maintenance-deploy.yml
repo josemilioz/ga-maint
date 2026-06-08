@@ -101,6 +101,54 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number || inputs.pr_number }}"
           terminus multidev:delete ${{ vars.PANTHEON_PROJECT_NAME }}.pr-${PR_NUMBER} --delete-branch --yes
 
+      - name: Notify Teamwork - Deployed
+        if: github.event_name == 'pull_request'
+        env:
+          TEAMWORK_SITE_URL: ${{ vars.TEAMWORK_SITE_URL }}
+          TEAMWORK_API_TOKEN: ${{ secrets.TEAMWORK_API_TOKEN }}
+          TEAMWORK_TASK_SEARCH_TERM: ${{ vars.TEAMWORK_TASK_SEARCH_TERM }}
+          TEAMWORK_PROJECT_ID: ${{ vars.TEAMWORK_PROJECT_ID }}
+          TEAMWORK_STAGE_DEPLOYED: ${{ vars.TEAMWORK_STAGE_DEPLOYED }}
+        run: |
+          BASE_URL="https://${TEAMWORK_SITE_URL}"
+          AUTH=$(printf '%s:x' "$TEAMWORK_API_TOKEN" | base64)
+
+          TASK_RESPONSE=$(curl -s \
+            -H "Authorization: Basic $AUTH" \
+            "${BASE_URL}/projects/api/v3/tasks.json?searchTerm=${TEAMWORK_TASK_SEARCH_TERM}&projectId=${TEAMWORK_PROJECT_ID}&status=active")
+          TASK_ID=$(printf '%s' "$TASK_RESPONSE" | jq -r '.tasks[0].id // empty')
+
+          if [ -z "$TASK_ID" ]; then
+            echo "No task found, skipping."
+            exit 0
+          fi
+
+          WORKFLOW_ID=$(curl -s \
+            -H "Authorization: Basic $AUTH" \
+            "${BASE_URL}/projects/api/v3/projects/${TEAMWORK_PROJECT_ID}/workflows.json" \
+            | jq -r '.workflows[0].id // empty')
+
+          if [ -z "$WORKFLOW_ID" ]; then
+            echo "No workflow found, skipping stage move."
+            exit 0
+          fi
+
+          STAGE_ID=$(curl -s \
+            -H "Authorization: Basic $AUTH" \
+            "${BASE_URL}/projects/api/v3/workflows/${WORKFLOW_ID}/stages.json" \
+            | jq -r --arg n "$TEAMWORK_STAGE_DEPLOYED" '.stages[] | select(.name == $n) | .id // empty')
+
+          if [ -n "$STAGE_ID" ]; then
+            curl -s -X PUT \
+              -H "Authorization: Basic $AUTH" \
+              -H "Content-Type: application/json" \
+              -d "{\"workflowId\": ${WORKFLOW_ID}, \"stageId\": ${STAGE_ID}, \"positionAfterTask\": -1}" \
+              "${BASE_URL}/projects/api/v3/tasks/${TASK_ID}/workflowstage.json" || true
+            echo "Task moved to ${TEAMWORK_STAGE_DEPLOYED}."
+          else
+            echo "Stage '${TEAMWORK_STAGE_DEPLOYED}' not found, skipping."
+          fi
+
       - name: Remove the last SSH Key we Added to Pantheon
         if: always()
         run: |
