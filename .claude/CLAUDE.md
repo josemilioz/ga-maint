@@ -35,6 +35,7 @@ Deployments to Pantheon happen in two steps:
    - Updates WordPress core (from Pantheon upstream)
    - Updates all plugins and themes via WP-CLI
    - Opens a PR with the changelog
+   - Posts a comment with the PR URL and changelog summary to the recurring Teamwork maintenance task
 
 2. **Deploy on merge** (`maintenance-deploy.yml`) — triggers when the maintenance PR is approved and merged into `main` or `master` (whichever is the principal branch of the project), then pushes to Pantheon.
 

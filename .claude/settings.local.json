@@ -3,7 +3,14 @@
     "allow": [
       "Bash(git *)",
       "Bash(gh workflow *)",
-      "Bash(gh run *)"
+      "Bash(gh run *)",
+      "WebFetch(domain:apidocs.teamwork.com)",
+      "mcp__claude_ai_Teamwork_MCP__twprojects-list_workflow_stages",
+      "mcp__claude_ai_Teamwork_MCP__twprojects-list_tasks",
+      "mcp__claude_ai_Teamwork_MCP__twprojects-create_comment",
+      "mcp__claude_ai_Teamwork_MCP__twprojects-move_task_to_workflow_stage",
+      "mcp__claude_ai_Teamwork_MCP__twprojects-list_comments",
+      "mcp__claude_ai_Teamwork_MCP__twprojects-get_comment"
     ]
   }
 }

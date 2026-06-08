@@ -61,6 +61,9 @@ Go to the GitHub repository → **Settings → Secrets and variables → Actions
 |--------|-------|
 | `PANTHEON_MACHINE_TOKEN` | The machine token generated in step 3 |
 | `SLACK_BOT_TOKEN` | The Slack bot OAuth token (`xoxb-...`) |
+| `TEAMWORK_API_TOKEN` | A Teamwork API token with permission to comment on tasks |
+
+To generate a Teamwork API token: log in to Teamwork → **Your avatar → Edit my details → API & Mobile → Show your token**.
 
 ---
 
@@ -72,10 +75,15 @@ Same location, under the **Variables** tab:
 |----------|-------|
 | `PANTHEON_PROJECT_NAME` | The Pantheon site machine name (e.g. `jose-playground`) |
 | `SLACK_CHANNEL_ID` | The Slack channel ID where notifications should be posted |
+| `TEAMWORK_SITE_URL` | Your Teamwork hostname, e.g. `yoursite.teamwork.com` |
+| `TEAMWORK_TASK_SEARCH_TERM` | Title (or unique fragment) of the recurring maintenance task |
+| `TEAMWORK_PROJECT_ID` | (Optional) Teamwork project ID — scopes the search to avoid false matches |
 
 The Pantheon site machine name is the slug shown in the dashboard URL and in Terminus commands.
 
 To find a Slack channel ID: open Slack, right-click the channel → **View channel details** → the ID is at the bottom.
+
+To find a Teamwork project ID: open the project in Teamwork — the ID is in the URL (`/projects/<id>/`).
 
 ---
 
