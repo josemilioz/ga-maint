@@ -145,39 +145,25 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          OUTPUT=$(wp plugin update --all --format=json 2>/dev/null || echo '[]')
-          TABLE=$(printf '%s' "$OUTPUT" | jq -r '
-            if (type != "array") or (length == 0) then "_No plugins were updated._"
-            else
-              "| Plugin | Old | New | Status |\n|--------|-----|-----|--------|\n" +
-              ([.[] | "| \(.name) | \(.version // .old_version // "—") | \(.update_version // .new_version // "—") | \(.status) |"] | join("\n"))
-            end
-          ' 2>/dev/null || echo "_No plugins were updated._")
-          COUNT=$(printf '%s' "$OUTPUT" | jq 'if type == "array" then length else 0 end' 2>/dev/null || echo 0)
+          RAW=$(wp plugin update --all 2>/dev/null | grep -E '^\+|^\||^(Success|Error):')
+          SUMMARY=$(printf '%s' "$RAW" | grep -E '^(Success|Error):' | tail -1)
           {
-            echo "table<<WPCLI_DELIM"
-            printf '%s\n' "$TABLE"
+            echo "output<<WPCLI_DELIM"
+            printf '%s\n' "${RAW:-No output.}"
             echo "WPCLI_DELIM"
-            echo "count=$COUNT"
+            echo "summary=${SUMMARY:-Unknown}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Update themes
         id: theme_update
         run: |
-          OUTPUT=$(wp theme update --all --format=json 2>/dev/null || echo '[]')
-          TABLE=$(printf '%s' "$OUTPUT" | jq -r '
-            if (type != "array") or (length == 0) then "_No themes were updated._"
-            else
-              "| Theme | Old | New | Status |\n|-------|-----|-----|--------|\n" +
-              ([.[] | "| \(.name) | \(.version // .old_version // "—") | \(.update_version // .new_version // "—") | \(.status) |"] | join("\n"))
-            end
-          ' 2>/dev/null || echo "_No themes were updated._")
-          COUNT=$(printf '%s' "$OUTPUT" | jq 'if type == "array" then length else 0 end' 2>/dev/null || echo 0)
+          RAW=$(wp theme update --all 2>/dev/null | grep -E '^\+|^\||^(Success|Error):')
+          SUMMARY=$(printf '%s' "$RAW" | grep -E '^(Success|Error):' | tail -1)
           {
-            echo "table<<WPCLI_DELIM"
-            printf '%s\n' "$TABLE"
+            echo "output<<WPCLI_DELIM"
+            printf '%s\n' "${RAW:-No output.}"
             echo "WPCLI_DELIM"
-            echo "count=$COUNT"
+            echo "summary=${SUMMARY:-Unknown}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
@@ -213,8 +199,8 @@ jobs:
         id: create_pr
         env:
           GH_TOKEN: ${{ github.token }}
-          PLUGIN_TABLE: ${{ steps.plugin_update.outputs.table }}
-          THEME_TABLE: ${{ steps.theme_update.outputs.table }}
+          PLUGIN_OUTPUT: ${{ steps.plugin_update.outputs.output }}
+          THEME_OUTPUT: ${{ steps.theme_update.outputs.output }}
           CORE_UPDATED: ${{ steps.core_update.outputs.updated }}
           CORE_VERSION: ${{ steps.core_update.outputs.version }}
           MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
@@ -227,11 +213,8 @@ jobs:
             CORE_LINE="No update — already at **${CORE_VERSION}**"
           fi
 
-          PLUGIN_TABLE="${PLUGIN_TABLE:-_No plugins were updated._}"
-          THEME_TABLE="${THEME_TABLE:-_No themes were updated._}"
-
-          PR_BODY="$(printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n%s\n\n## Themes\n%s' \
-            "$MONTH_YEAR" "$CORE_LINE" "$PLUGIN_TABLE" "$THEME_TABLE")"
+          PR_BODY="$(printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n```\n%s\n```\n\n## Themes\n```\n%s\n```' \
+            "$MONTH_YEAR" "$CORE_LINE" "${PLUGIN_OUTPUT:-No output.}" "${THEME_OUTPUT:-No output.}")"
 
           PR_URL=$(gh pr create \
             --base "$DEFAULT_BRANCH" \
@@ -265,27 +248,21 @@ jobs:
           MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
           CORE_UPDATED: ${{ steps.core_update.outputs.updated }}
           CORE_VERSION: ${{ steps.core_update.outputs.version }}
-          PLUGIN_COUNT: ${{ steps.plugin_update.outputs.count }}
-          THEME_COUNT: ${{ steps.theme_update.outputs.count }}
+          PLUGIN_SUMMARY: ${{ steps.plugin_update.outputs.summary }}
+          THEME_SUMMARY: ${{ steps.theme_update.outputs.summary }}
           PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
           [ "$CORE_UPDATED" = "true" ] \
             && CORE_MSG="Updated to *${CORE_VERSION}*" \
             || CORE_MSG="Already at *${CORE_VERSION}*"
-          [ "${PLUGIN_COUNT:-0}" -gt 0 ] \
-            && PLUGIN_MSG="${PLUGIN_COUNT} updated" \
-            || PLUGIN_MSG="No updates"
-          [ "${THEME_COUNT:-0}" -gt 0 ] \
-            && THEME_MSG="${THEME_COUNT} updated" \
-            || THEME_MSG="No updates"
 
           PAYLOAD=$(jq -n \
             --arg ch  "$SLACK_CHANNEL" \
             --arg url "$PR_URL" \
             --arg my  "$MONTH_YEAR" \
             --arg cm  "$CORE_MSG" \
-            --arg pm  "$PLUGIN_MSG" \
-            --arg tm  "$THEME_MSG" \
+            --arg pm  "$PLUGIN_SUMMARY" \
+            --arg tm  "$THEME_SUMMARY" \
             --arg pn  "$PROJECT_NAME" \
             '{
               channel: $ch,
