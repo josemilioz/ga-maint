@@ -115,7 +115,7 @@ jobs:
 
           TASK_RESPONSE=$(curl -s \
             -H "Authorization: Basic $AUTH" \
-            "${BASE_URL}/projects/api/v3/tasks.json?searchTerm=${TEAMWORK_TASK_SEARCH_TERM}&projectId=${TEAMWORK_PROJECT_ID}&status=active")
+            "${BASE_URL}/projects/api/v3/tasks.json?projectIds=${TEAMWORK_PROJECT_ID}&searchTerm=${TEAMWORK_TASK_SEARCH_TERM}")
           TASK_ID=$(printf '%s' "$TASK_RESPONSE" | jq -r '.tasks[0].id // empty')
 
           if [ -z "$TASK_ID" ]; then
@@ -125,8 +125,8 @@ jobs:
 
           WORKFLOW_ID=$(curl -s \
             -H "Authorization: Basic $AUTH" \
-            "${BASE_URL}/projects/api/v3/projects/${TEAMWORK_PROJECT_ID}/workflows.json" \
-            | jq -r '.workflows[0].id // empty')
+            "${BASE_URL}/projects/api/v3/projects/${TEAMWORK_PROJECT_ID}.json" \
+            | jq -r '.project.workflows[0].id // empty')
 
           if [ -z "$WORKFLOW_ID" ]; then
             echo "No workflow found, skipping stage move."
@@ -142,8 +142,8 @@ jobs:
             curl -s -X PUT \
               -H "Authorization: Basic $AUTH" \
               -H "Content-Type: application/json" \
-              -d "{\"workflowId\": ${WORKFLOW_ID}, \"stageId\": ${STAGE_ID}, \"positionAfterTask\": -1}" \
-              "${BASE_URL}/projects/api/v3/tasks/${TASK_ID}/workflowstage.json" || true
+              -d "{\"stageId\": ${STAGE_ID}, \"positionAfterTask\": -1}" \
+              "${BASE_URL}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json" || true
             echo "Task moved to ${TEAMWORK_STAGE_DEPLOYED}."
           else
             echo "Stage '${TEAMWORK_STAGE_DEPLOYED}' not found, skipping."
