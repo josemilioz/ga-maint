@@ -10,7 +10,13 @@
       "mcp__claude_ai_Teamwork_MCP__twprojects-create_comment",
       "mcp__claude_ai_Teamwork_MCP__twprojects-move_task_to_workflow_stage",
       "mcp__claude_ai_Teamwork_MCP__twprojects-list_comments",
-      "mcp__claude_ai_Teamwork_MCP__twprojects-get_comment"
+      "mcp__claude_ai_Teamwork_MCP__twprojects-get_comment",
+      "Read(//Volumes/Docs/PRI/experiments/pantheon/jose-play/.github/workflows/**)",
+      "Read(//Volumes/Docs/PRI/experiments/pantheon/jose-play/.claude/**)",
+      "Bash(cp /Volumes/Docs/PRI/experiments/pantheon/jp-gh/.github/workflows/pantheon-maintenance-pull.yml /Volumes/Docs/PRI/experiments/pantheon/jose-play/.github/workflows/pantheon-maintenance-pull.yml)",
+      "Bash(cp /Volumes/Docs/PRI/experiments/pantheon/jp-gh/.github/workflows/pantheon-maintenance-deploy.yml /Volumes/Docs/PRI/experiments/pantheon/jose-play/.github/workflows/pantheon-maintenance-deploy.yml)",
+      "Bash(mkdir -p /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jose-play/memory)",
+      "Bash(cp /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jp-gh/memory/*.md /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jose-play/memory/)"
     ]
   }
 }
