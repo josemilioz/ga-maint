@@ -145,26 +145,18 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          RAW=$(wp plugin update --all 2>/dev/null | grep -E '^\+|^\||^(Success|Error):')
-          SUMMARY=$(printf '%s' "$RAW" | grep -E '^(Success|Error):' | tail -1)
-          {
-            echo "output<<WPCLI_DELIM"
-            printf '%s\n' "${RAW:-No output.}"
-            echo "WPCLI_DELIM"
-            echo "summary=${SUMMARY:-Unknown}"
-          } >> "$GITHUB_OUTPUT"
+          wp plugin update --all 2>/dev/null \
+            | grep -E '^\+|^\||^(Success|Error):' > /tmp/plugin_update.txt || true
+          SUMMARY=$(grep -E '^(Success|Error):' /tmp/plugin_update.txt | tail -1)
+          echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
 
       - name: Update themes
         id: theme_update
         run: |
-          RAW=$(wp theme update --all 2>/dev/null | grep -E '^\+|^\||^(Success|Error):')
-          SUMMARY=$(printf '%s' "$RAW" | grep -E '^(Success|Error):' | tail -1)
-          {
-            echo "output<<WPCLI_DELIM"
-            printf '%s\n' "${RAW:-No output.}"
-            echo "WPCLI_DELIM"
-            echo "summary=${SUMMARY:-Unknown}"
-          } >> "$GITHUB_OUTPUT"
+          wp theme update --all 2>/dev/null \
+            | grep -E '^\+|^\||^(Success|Error):' > /tmp/theme_update.txt || true
+          SUMMARY=$(grep -E '^(Success|Error):' /tmp/theme_update.txt | tail -1)
+          echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
         run: rm -f wp-config-local.php
@@ -199,8 +191,6 @@ jobs:
         id: create_pr
         env:
           GH_TOKEN: ${{ github.token }}
-          PLUGIN_OUTPUT: ${{ steps.plugin_update.outputs.output }}
-          THEME_OUTPUT: ${{ steps.theme_update.outputs.output }}
           CORE_UPDATED: ${{ steps.core_update.outputs.updated }}
           CORE_VERSION: ${{ steps.core_update.outputs.version }}
           MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
@@ -212,6 +202,9 @@ jobs:
           else
             CORE_LINE="No update — already at **${CORE_VERSION}**"
           fi
+
+          PLUGIN_OUTPUT=$(cat /tmp/plugin_update.txt 2>/dev/null)
+          THEME_OUTPUT=$(cat /tmp/theme_update.txt 2>/dev/null)
 
           printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n```\n%s\n```\n\n## Themes\n```\n%s\n```' \
             "$MONTH_YEAR" "$CORE_LINE" "${PLUGIN_OUTPUT:-No output.}" "${THEME_OUTPUT:-No output.}" > /tmp/pr_body.md
