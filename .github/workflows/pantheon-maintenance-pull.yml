@@ -145,7 +145,7 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          wp plugin update --all 2>/dev/null \
+          wp plugin update --all --no-color 2>&1 \
             | grep -E '^\+|^\||^(Success|Error):' > /tmp/plugin_update.txt || true
           SUMMARY=$(grep -E '^(Success|Error):' /tmp/plugin_update.txt | tail -1)
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
@@ -153,7 +153,7 @@ jobs:
       - name: Update themes
         id: theme_update
         run: |
-          wp theme update --all 2>/dev/null \
+          wp theme update --all --no-color 2>&1 \
             | grep -E '^\+|^\||^(Success|Error):' > /tmp/theme_update.txt || true
           SUMMARY=$(grep -E '^(Success|Error):' /tmp/theme_update.txt | tail -1)
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
@@ -252,7 +252,7 @@ jobs:
           TEAMWORK_STAGE_UAT: ${{ vars.TEAMWORK_STAGE_UAT }}
           TEAMWORK_STAGE_IN_PROGRESS: ${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}
         run: |
-          BASE_URL="https://${TEAMWORK_SITE_URL}"
+          BASE_URL="${TEAMWORK_SITE_URL}"
           AUTH=$(printf '%s:x' "$TEAMWORK_API_TOKEN" | base64)
 
           # Find the open maintenance task
