@@ -257,9 +257,11 @@ jobs:
           AUTH=$(printf '%s:X' "${{ secrets.TEAMWORK_API_TOKEN }}" | base64 | tr -d '\n')
 
           # Find the open maintenance task
-          TASK_RESPONSE=$(curl -s \
+          TASK_RESPONSE=$(curl -s -G \
             -H "Authorization: Basic $AUTH" \
-            "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks.json?projectIds=${{ vars.TEAMWORK_PROJECT_ID }}&searchTerm=${{ vars.TEAMWORK_TASK_SEARCH_TERM }}")
+            --data-urlencode "projectIds=${{ vars.TEAMWORK_PROJECT_ID }}" \
+            --data-urlencode "searchTerm=${{ vars.TEAMWORK_TASK_SEARCH_TERM }}" \
+            "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks.json") || true
           TASK_ID=$(printf '%s' "$TASK_RESPONSE" | jq -r '.tasks[0].id // empty' 2>/dev/null) || true
 
           if [ -z "$TASK_ID" ]; then
