@@ -88,13 +88,7 @@ jobs:
       - name: Create maintenance branch
         run: |
           git fetch pantheon
-          git fetch origin
-          if git ls-remote --exit-code --heads origin "${{ steps.vars.outputs.BRANCH_NAME }}" > /dev/null 2>&1; then
-            echo "Branch already exists on origin, resuming from there."
-            git checkout "${{ steps.vars.outputs.BRANCH_NAME }}"
-          else
-            git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
-          fi
+          git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
 
       - name: Snapshot workflow files
         run: git ls-tree -r --name-only HEAD -- .github/workflows/ | sort > /tmp/our_workflows.txt
@@ -190,7 +184,8 @@ jobs:
       - name: Push maintenance branch
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git push origin "${{ steps.vars.outputs.BRANCH_NAME }}" --force-with-lease
+          git pull origin "${{ steps.vars.outputs.BRANCH_NAME }}" --no-rebase || true
+          git push origin "${{ steps.vars.outputs.BRANCH_NAME }}"
 
       - name: Create pull request
         if: steps.changes.outputs.has_changes == 'true'
