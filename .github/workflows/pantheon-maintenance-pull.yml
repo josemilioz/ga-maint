@@ -244,21 +244,13 @@ jobs:
 
       - name: Notify Teamwork
         if: steps.changes.outputs.has_changes == 'true'
-        env:
-          TEAMWORK_SITE_URL: ${{ vars.TEAMWORK_SITE_URL }}
-          TEAMWORK_API_TOKEN: ${{ secrets.TEAMWORK_API_TOKEN }}
-          TEAMWORK_TASK_SEARCH_TERM: ${{ vars.TEAMWORK_TASK_SEARCH_TERM }}
-          TEAMWORK_PROJECT_ID: ${{ vars.TEAMWORK_PROJECT_ID }}
-          TEAMWORK_STAGE_UAT: ${{ vars.TEAMWORK_STAGE_UAT }}
-          TEAMWORK_STAGE_IN_PROGRESS: ${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}
         run: |
-          BASE_URL="${TEAMWORK_SITE_URL}"
-          AUTH=$(printf '%s:x' "$TEAMWORK_API_TOKEN" | base64 | tr -d '\n')
+          AUTH=$(printf '%s:x' "${{ secrets.TEAMWORK_API_TOKEN }}" | base64 | tr -d '\n')
 
           # Find the open maintenance task
           TASK_RESPONSE=$(curl -s \
             -H "Authorization: Basic $AUTH" \
-            "${BASE_URL}/projects/api/v3/tasks.json?projectIds=${TEAMWORK_PROJECT_ID}&searchTerm=${TEAMWORK_TASK_SEARCH_TERM}")
+            "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks.json?projectIds=${{ vars.TEAMWORK_PROJECT_ID }}&searchTerm=${{ vars.TEAMWORK_TASK_SEARCH_TERM }}")
           TASK_ID=$(printf '%s' "$TASK_RESPONSE" | jq -r '.tasks[0].id // empty' 2>/dev/null) || true
 
           if [ -z "$TASK_ID" ]; then
@@ -269,16 +261,16 @@ jobs:
           # Get the project to extract the workflow ID, then get its stages
           WORKFLOW_ID=$(curl -s \
             -H "Authorization: Basic $AUTH" \
-            "${BASE_URL}/projects/api/v3/projects/${TEAMWORK_PROJECT_ID}.json" \
+            "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/projects/${{ vars.TEAMWORK_PROJECT_ID }}.json" \
             | jq -r '.project.workflows[0].id // empty' 2>/dev/null) || true
 
           if [ -n "$WORKFLOW_ID" ]; then
             STAGES=$(curl -s \
               -H "Authorization: Basic $AUTH" \
-              "${BASE_URL}/projects/api/v3/workflows/${WORKFLOW_ID}/stages.json")
+              "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/workflows/${WORKFLOW_ID}/stages.json")
 
-            UAT_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "$TEAMWORK_STAGE_UAT" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
-            IP_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "$TEAMWORK_STAGE_IN_PROGRESS" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
+            UAT_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "${{ vars.TEAMWORK_STAGE_UAT }}" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
+            IP_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
 
             MOVED=false
             if [ -n "$UAT_STAGE_ID" ]; then
@@ -286,20 +278,20 @@ jobs:
                 -H "Authorization: Basic $AUTH" \
                 -H "Content-Type: application/json" \
                 -d "{\"stageId\": ${UAT_STAGE_ID}, \"positionAfterTask\": -1}" \
-                "${BASE_URL}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json") || true
+                "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json") || true
               if [ "$HTTP" -ge 200 ] && [ "$HTTP" -lt 300 ]; then
                 MOVED=true
-                echo "Task moved to ${TEAMWORK_STAGE_UAT}."
+                echo "Task moved to ${{ vars.TEAMWORK_STAGE_UAT }}."
               fi
             fi
 
             if [ "$MOVED" = "false" ] && [ -n "$IP_STAGE_ID" ]; then
-              echo "Falling back to ${TEAMWORK_STAGE_IN_PROGRESS}."
+              echo "Falling back to ${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}."
               curl -s -X PUT \
                 -H "Authorization: Basic $AUTH" \
                 -H "Content-Type: application/json" \
                 -d "{\"stageId\": ${IP_STAGE_ID}, \"positionAfterTask\": -1}" \
-                "${BASE_URL}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json" || true
+                "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json" || true
             fi
           fi
 
@@ -309,7 +301,7 @@ jobs:
             -H "Authorization: Basic $AUTH" \
             -H "Content-Type: application/json" \
             -d "$COMMENT_JSON" \
-            "${BASE_URL}/tasks/${TASK_ID}/comments.json" || true
+            "${{ vars.TEAMWORK_SITE_URL }}/tasks/${TASK_ID}/comments.json" || true
           echo "Comment posted to Teamwork task."
 
       - name: Remove SSH Key
