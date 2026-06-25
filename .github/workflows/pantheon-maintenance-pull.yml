@@ -88,7 +88,13 @@ jobs:
       - name: Create maintenance branch
         run: |
           git fetch pantheon
-          git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
+          git fetch origin
+          if git ls-remote --exit-code --heads origin "${{ steps.vars.outputs.BRANCH_NAME }}" > /dev/null 2>&1; then
+            echo "Branch already exists on origin, resuming from there."
+            git checkout "${{ steps.vars.outputs.BRANCH_NAME }}"
+          else
+            git checkout -b "${{ steps.vars.outputs.BRANCH_NAME }}" pantheon/${{ env.PANTHEON_BRANCH }}
+          fi
 
       - name: Snapshot workflow files
         run: git ls-tree -r --name-only HEAD -- .github/workflows/ | sort > /tmp/our_workflows.txt
@@ -184,7 +190,7 @@ jobs:
       - name: Push maintenance branch
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git push origin "${{ steps.vars.outputs.BRANCH_NAME }}"
+          git push origin "${{ steps.vars.outputs.BRANCH_NAME }}" --force-with-lease
 
       - name: Create pull request
         if: steps.changes.outputs.has_changes == 'true'
@@ -209,12 +215,20 @@ jobs:
           printf '# Automated maintenance %s\n\n## WordPress Core\n%s\n\n## Plugins\n```\n%s\n```\n\n## Themes\n```\n%s\n```' \
             "$MONTH_YEAR" "$CORE_LINE" "${PLUGIN_OUTPUT:-No output.}" "${THEME_OUTPUT:-No output.}" > /tmp/pr_body.md
 
-          PR_URL=$(gh pr create \
-            --base "$DEFAULT_BRANCH" \
-            --head "$BRANCH_NAME" \
-            --title "Maintenance for $MONTH_YEAR" \
-            --body-file /tmp/pr_body.md)
-          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          EXISTING=$(gh pr list --head "$BRANCH_NAME" --base "$DEFAULT_BRANCH" --json url,number --jq '.[0]' 2>/dev/null || echo "")
+          if [ -n "$EXISTING" ]; then
+            PR_URL=$(echo "$EXISTING" | jq -r '.url')
+            PR_NUMBER=$(echo "$EXISTING" | jq -r '.number')
+            gh pr edit "$PR_NUMBER" --title "Maintenance for $MONTH_YEAR" --body-file /tmp/pr_body.md
+            echo "Updated existing PR: $PR_URL"
+          else
+            PR_URL=$(gh pr create \
+              --base "$DEFAULT_BRANCH" \
+              --head "$BRANCH_NAME" \
+              --title "Maintenance for $MONTH_YEAR" \
+              --body-file /tmp/pr_body.md)
+            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          fi
           echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
