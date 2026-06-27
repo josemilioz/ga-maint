@@ -251,6 +251,22 @@ jobs:
       #     printf '\n## Preview\n[PR environment](%s)\n' "$MULTIDEV_URL" >> /tmp/pr_body.md
       #     gh pr edit "${{ steps.create_pr.outputs.pr_number }}" --body-file /tmp/pr_body.md
 
+      - name: Remove SSH Key
+        if: always()
+        run: |
+          export COLUMNS=256
+          LAST_SSH_KEY_ID=$(terminus ssh-key:list | grep "developers@proven.us" | awk '{ print $1 }')
+          if [ -n "$LAST_SSH_KEY_ID" ]; then
+            echo "$LAST_SSH_KEY_ID" | while IFS= read -r KEY; do
+              [ -n "$KEY" ] && terminus ssh-key:remove "$KEY"
+            done
+          fi
+
+      - name: No changes detected
+        if: steps.changes.outputs.has_changes == 'false'
+        run: |
+          echo "No updates were available. No pull request created."
+
       - name: Notify Teamwork
         if: steps.changes.outputs.has_changes == 'true'
         run: |
@@ -319,22 +335,6 @@ jobs:
             echo "Failed to post comment."
             exit 1
           fi
-
-      - name: Remove SSH Key
-        if: always()
-        run: |
-          export COLUMNS=256
-          LAST_SSH_KEY_ID=$(terminus ssh-key:list | grep "developers@proven.us" | awk '{ print $1 }')
-          if [ -n "$LAST_SSH_KEY_ID" ]; then
-            echo "$LAST_SSH_KEY_ID" | while IFS= read -r KEY; do
-              [ -n "$KEY" ] && terminus ssh-key:remove "$KEY"
-            done
-          fi
-
-      - name: No changes detected
-        if: steps.changes.outputs.has_changes == 'false'
-        run: |
-          echo "No updates were available. No pull request created."
 
       - name: Notify Slack - PR Created
         if: always() && steps.create_pr.outputs.pr_url != ''
