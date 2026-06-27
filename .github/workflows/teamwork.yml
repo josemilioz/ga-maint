@@ -1,4 +1,4 @@
-name: Teamwork Test
+name: _Teamwork Test
 
 on:
   workflow_dispatch: # Allows manual triggering of the workflow

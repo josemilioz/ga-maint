@@ -1,4 +1,4 @@
-name: Dummy Test
+name: _Dummy Test
 
 on:
   workflow_dispatch:
