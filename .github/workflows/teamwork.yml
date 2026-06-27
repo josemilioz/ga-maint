@@ -51,7 +51,7 @@ jobs:
               HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
                 -H "Authorization: Basic $AUTH" \
                 -H "Content-Type: application/json" \
-                -d "{\"stageId\": ${UAT_STAGE_ID}, \"positionAfterTask\": -1}" \
+                -d "{\"workflowId\": ${WORKFLOW_ID}, \"stageId\": ${UAT_STAGE_ID}, \"positionAfterTask\": -1}" \
                 "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json") || true
               if [ "$HTTP" -ge 200 ] && [ "$HTTP" -lt 300 ]; then
                 MOVED=true
@@ -64,7 +64,7 @@ jobs:
               curl -s -X PUT \
                 -H "Authorization: Basic $AUTH" \
                 -H "Content-Type: application/json" \
-                -d "{\"stageId\": ${IP_STAGE_ID}, \"positionAfterTask\": -1}" \
+                -d "{\"workflowId\": ${WORKFLOW_ID}, \"stageId\": ${IP_STAGE_ID}, \"positionAfterTask\": -1}" \
                 "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json" || true
             fi
           fi
