@@ -269,15 +269,11 @@ jobs:
             exit 0
           fi
 
-          echo "TASK_ID: $TASK_ID"
-
           # Get the project to extract the workflow ID, then get its stages
           WORKFLOW_ID=$(curl -s \
             -H "Authorization: Basic $AUTH" \
             "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/projects/${{ vars.TEAMWORK_PROJECT_ID }}.json" \
             | jq -r '.project.workflows[0].id // empty' 2>/dev/null) || true
-
-          echo "WORKFLOW_ID: $WORKFLOW_ID"
 
           if [ -n "$WORKFLOW_ID" ]; then
             STAGES=$(curl -s \
@@ -287,9 +283,6 @@ jobs:
             UAT_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "${{ vars.TEAMWORK_STAGE_UAT }}" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
             IP_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
 
-            echo "UAT_STAGE_ID: $UAT_STAGE_ID"
-            echo "IP_STAGE_ID: $IP_STAGE_ID"
-
             MOVED=false
             if [ -n "$UAT_STAGE_ID" ]; then
               HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X PATCH \
@@ -297,7 +290,6 @@ jobs:
                 -H "Content-Type: application/json" \
                 -d "{\"workflowId\": ${WORKFLOW_ID}, \"stageId\": ${UAT_STAGE_ID}, \"positionAfterTask\": -1}" \
                 "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/tasks/${TASK_ID}/workflows/${WORKFLOW_ID}.json") || true
-              echo "Stage move HTTP: $HTTP"
               if [ "$HTTP" -ge 200 ] && [ "$HTTP" -lt 300 ]; then
                 MOVED=true
                 echo "Task moved to ${{ vars.TEAMWORK_STAGE_UAT }}."
