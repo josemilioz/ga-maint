@@ -145,8 +145,12 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          wp plugin update --all --no-color 2>&1 \
-            | grep -E '^\+|^\||^(Success|Error):' > /tmp/plugin_update.txt || true
+          echo "--- raw wp plugin update output ---"
+          wp plugin update --all --no-color 2>&1 | tee /tmp/plugin_raw.txt || true
+          echo "--- grepped output ---"
+          grep -E '^\+|^\||^(Success|Error):' /tmp/plugin_raw.txt > /tmp/plugin_update.txt || true
+          cat /tmp/plugin_update.txt
+          echo "--- end ---"
           SUMMARY=$(grep -E '^(Success|Error):' /tmp/plugin_update.txt | tail -1)
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
 
