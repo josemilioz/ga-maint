@@ -285,7 +285,7 @@ jobs:
 
             MOVED=false
             if [ -n "$UAT_STAGE_ID" ]; then
-              HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
+              HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X PATCH \
                 -H "Authorization: Basic $AUTH" \
                 -H "Content-Type: application/json" \
                 -d "{\"stageId\": ${UAT_STAGE_ID}, \"positionAfterTask\": -1}" \
@@ -298,7 +298,7 @@ jobs:
 
             if [ "$MOVED" = "false" ] && [ -n "$IP_STAGE_ID" ]; then
               echo "Falling back to ${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}."
-              curl -s -X PUT \
+              curl -s -X PATCH \
                 -H "Authorization: Basic $AUTH" \
                 -H "Content-Type: application/json" \
                 -d "{\"stageId\": ${IP_STAGE_ID}, \"positionAfterTask\": -1}" \
