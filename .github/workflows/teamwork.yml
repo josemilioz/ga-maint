@@ -69,8 +69,18 @@ jobs:
             fi
           fi
 
-          # Post test comment with markdown table
-          BODY="## Maintenance Test\n\nHere is a table to test markdown rendering:\n\n| Plugin | Old Version | New Version |\n|---|---|---|\n| Akismet Anti-Spam | 5.3.3 | 5.3.4 |\n| Hello Dolly | 1.7.2 | 1.7.3 |\n\nEnd of test."
+          # Dummy WP-CLI JSON output (mimics: wp plugin update --all --format=json)
+          PLUGIN_JSON='[
+            {"name":"Akismet Anti-Spam","old_version":"5.3.3","new_version":"5.3.4","status":"Updated"},
+            {"name":"Hello Dolly","old_version":"1.7.2","new_version":"1.7.3","status":"Updated"},
+            {"name":"Yoast SEO","old_version":"22.1","new_version":"22.2","status":"Updated"}
+          ]'
+
+          PLUGIN_TABLE=$(printf '%s' "$PLUGIN_JSON" | jq -r \
+            '"| Plugin | Old Version | New Version | Status |\n|---|---|---|---|\n" +
+            ([.[] | "| \(.name) | \(.old_version) | \(.new_version) | \(.status) |"] | join("\n"))')
+
+          BODY="## Maintenance Test\n\n### Plugins\n\n${PLUGIN_TABLE}\n\nEnd of test."
           COMMENT_JSON=$(jq -n --arg body "$BODY" '{"comment": {"body": $body, "content-type": "text"}}')
           curl -s -X POST \
             -H "Authorization: Basic $AUTH" \
