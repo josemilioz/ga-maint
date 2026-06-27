@@ -24,12 +24,15 @@ jobs:
           CORE_LINE="Updated to **${{ steps.vars.outputs.CORE_VERSION }}**"
           PR_URL="${{ steps.vars.outputs.PR_URL }}"
 
-          PLUGIN_OUTPUT="+------------------------------------+-------------+-------------+
+          PLUGIN_OUTPUT=$(cat <<'EOF'
++------------------------------------+-------------+-------------+
 | name                               | old_version | new_version |
 +------------------------------------+-------------+-------------+
 | Akismet Anti-Spam                  | 5.3.3       | 5.3.4       |
 +------------------------------------+-------------+-------------+
-Success: Updated 1/1 plugins."
+Success: Updated 1/1 plugins.
+EOF
+)
 
           THEME_OUTPUT="Success: Theme already up to date."
 
