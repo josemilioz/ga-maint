@@ -1,4 +1,4 @@
-name: Maintenance Test (Dry Run)
+name: Dummy Test
 
 on:
   workflow_dispatch:
