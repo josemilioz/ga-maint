@@ -101,6 +101,24 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number || inputs.pr_number }}"
           terminus multidev:delete ${{ vars.PANTHEON_PROJECT_NAME }}.pr-${PR_NUMBER} --delete-branch --yes
 
+      - name: Remove the last SSH Key we Added to Pantheon
+        if: always()
+        run: |
+          # grab the ID and use it to remove the key
+          export COLUMNS=256 # So the table displayed by terminus won't split into useless lines
+
+          terminus ssh-key:list
+
+          LAST_SSH_KEY_ID=$(terminus ssh-key:list | grep "developers@proven.us" | awk '{ print $1 }')
+
+          if [ -n "$LAST_SSH_KEY_ID" ] && [ '.' !=  "$LAST_SSH_KEY_ID" ]; then
+            echo "$LAST_SSH_KEY_ID" | while IFS= read -r KEY; do
+              if [ -n "$KEY" ]; then
+                terminus ssh-key:remove "$KEY"
+              fi
+            done
+          fi
+
       - name: Notify Teamwork - Deployed
         if: github.event_name == 'pull_request'
         run: |
@@ -142,24 +160,6 @@ jobs:
             echo "Task moved to ${{ vars.TEAMWORK_STAGE_DEPLOYED }}."
           else
             echo "Stage '${{ vars.TEAMWORK_STAGE_DEPLOYED }}' not found, skipping."
-          fi
-
-      - name: Remove the last SSH Key we Added to Pantheon
-        if: always()
-        run: |
-          # grab the ID and use it to remove the key
-          export COLUMNS=256 # So the table displayed by terminus won't split into useless lines
-
-          terminus ssh-key:list
-
-          LAST_SSH_KEY_ID=$(terminus ssh-key:list | grep "developers@proven.us" | awk '{ print $1 }')
-
-          if [ -n "$LAST_SSH_KEY_ID" ] && [ '.' !=  "$LAST_SSH_KEY_ID" ]; then
-            echo "$LAST_SSH_KEY_ID" | while IFS= read -r KEY; do
-              if [ -n "$KEY" ]; then
-                terminus ssh-key:remove "$KEY"
-              fi
-            done
           fi
 
       - name: Notify Slack - Deployed
