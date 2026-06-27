@@ -254,7 +254,7 @@ jobs:
       - name: Notify Teamwork
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          AUTH=$(printf '%s:X' "${{ secrets.TEAMWORK_API_TOKEN }}" | base64 | tr -d '\n')
+          AUTH=$(printf '%s:X' "${{ secrets.TEAMWORK_API_TOKEN }}" | base64)
 
           # Find the open maintenance task
           TASK_RESPONSE=$(curl -s -G \

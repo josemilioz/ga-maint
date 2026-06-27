@@ -16,7 +16,8 @@
       "Bash(cp /Volumes/Docs/PRI/experiments/pantheon/jp-gh/.github/workflows/pantheon-maintenance-pull.yml /Volumes/Docs/PRI/experiments/pantheon/jose-play/.github/workflows/pantheon-maintenance-pull.yml)",
       "Bash(cp /Volumes/Docs/PRI/experiments/pantheon/jp-gh/.github/workflows/pantheon-maintenance-deploy.yml /Volumes/Docs/PRI/experiments/pantheon/jose-play/.github/workflows/pantheon-maintenance-deploy.yml)",
       "Bash(mkdir -p /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jose-play/memory)",
-      "Bash(cp /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jp-gh/memory/*.md /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jose-play/memory/)"
+      "Bash(cp /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jp-gh/memory/*.md /Users/josemilioz/.claude/projects/-Volumes-Docs-PRI-experiments-pantheon-jose-play/memory/)",
+      "Bash(grep -v '^$')"
     ]
   }
 }
