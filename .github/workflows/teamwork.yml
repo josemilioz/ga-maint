@@ -76,12 +76,11 @@ jobs:
             {"name":"Yoast SEO","old_version":"22.1","new_version":"22.2","status":"Updated"}
           ]'
 
-          PLUGIN_TABLE=$(printf '%s' "$PLUGIN_JSON" | jq -r \
-            '"| Plugin | Old Version | New Version | Status |\n|---|---|---|---|\n" +
-            ([.[] | "| \(.name) | \(.old_version) | \(.new_version) | \(.status) |"] | join("\n"))')
+          PLUGIN_ROWS=$(printf '%s' "$PLUGIN_JSON" | jq -r \
+            '[.[] | "<tr><td>\(.name)</td><td>\(.old_version)</td><td>\(.new_version)</td><td>\(.status)</td></tr>"] | join("")')
 
-          BODY="## Maintenance Test\n\n### Plugins\n\n${PLUGIN_TABLE}\n\nEnd of test."
-          COMMENT_JSON=$(jq -n --arg body "$BODY" '{"comment": {"body": $body, "content-type": "text"}}')
+          BODY="<h2>Maintenance Test</h2><h3>Plugins</h3><table><thead><tr><th>Plugin</th><th>Old Version</th><th>New Version</th><th>Status</th></tr></thead><tbody>${PLUGIN_ROWS}</tbody></table>"
+          COMMENT_JSON=$(jq -n --arg body "$BODY" '{"comment": {"body": $body, "content-type": "html"}}')
           curl -s -X POST \
             -H "Authorization: Basic $AUTH" \
             -H "Content-Type: application/json" \
