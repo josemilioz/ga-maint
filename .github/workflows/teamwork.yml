@@ -25,11 +25,15 @@ jobs:
             exit 0
           fi
 
+          echo "TASK_ID: $TASK_ID"
+
           # Get the project to extract the workflow ID, then get its stages
           WORKFLOW_ID=$(curl -s \
             -H "Authorization: Basic $AUTH" \
             "${{ vars.TEAMWORK_SITE_URL }}/projects/api/v3/projects/${{ vars.TEAMWORK_PROJECT_ID }}.json" \
             | jq -r '.project.workflows[0].id // empty' 2>/dev/null) || true
+
+          echo "WORKFLOW_ID: $WORKFLOW_ID"
 
           if [ -n "$WORKFLOW_ID" ]; then
             STAGES=$(curl -s \
@@ -38,6 +42,9 @@ jobs:
 
             UAT_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "${{ vars.TEAMWORK_STAGE_UAT }}" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
             IP_STAGE_ID=$(printf '%s' "$STAGES" | jq -r --arg n "${{ vars.TEAMWORK_STAGE_IN_PROGRESS }}" '.stages[] | select(.name == $n) | .id // empty' 2>/dev/null) || true
+
+            echo "UAT_STAGE_ID: $UAT_STAGE_ID"
+            echo "IP_STAGE_ID: $IP_STAGE_ID"
 
             MOVED=false
             if [ -n "$UAT_STAGE_ID" ]; then
