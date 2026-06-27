@@ -204,6 +204,12 @@ jobs:
             CORE_LINE="No update — already at **${CORE_VERSION}**"
           fi
 
+          echo "--- plugin_update.txt ---"
+          cat /tmp/plugin_update.txt 2>/dev/null || echo "(empty)"
+          echo "--- theme_update.txt ---"
+          cat /tmp/theme_update.txt 2>/dev/null || echo "(empty)"
+          echo "--- end debug ---"
+
           {
             printf '# Automated maintenance %s\n\n' "$MONTH_YEAR"
             printf '## WordPress Core\n%s\n\n' "$CORE_LINE"
@@ -214,6 +220,10 @@ jobs:
             cat /tmp/theme_update.txt 2>/dev/null
             printf '\n```\n'
           } > /tmp/pr_body.md
+
+          echo "--- pr_body.md ---"
+          cat /tmp/pr_body.md
+          echo "--- end pr_body ---"
 
           EXISTING=$(gh pr list --head "$BRANCH_NAME" --base "$DEFAULT_BRANCH" --json url,number --jq '.[0]' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
