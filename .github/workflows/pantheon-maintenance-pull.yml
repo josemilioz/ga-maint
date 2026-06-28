@@ -396,31 +396,22 @@ jobs:
 
       - name: Notify Slack - PR Created
         if: always() && steps.create_pr.outputs.pr_url != ''
-        env:
-          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
-          PR_URL: ${{ steps.create_pr.outputs.pr_url }}
-          MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
-          CORE_UPDATED: ${{ steps.core_update.outputs.updated }}
-          CORE_VERSION: ${{ steps.core_update.outputs.version }}
-          PLUGIN_SUMMARY: ${{ steps.plugin_update.outputs.summary }}
-          THEME_SUMMARY: ${{ steps.theme_update.outputs.summary }}
-          MULTIDEV_URL: ${{ steps.multidev.outputs.url }}
-          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
+          CORE_UPDATED="${{ steps.core_update.outputs.updated }}"
+          CORE_VERSION="${{ steps.core_update.outputs.version }}"
           [ "$CORE_UPDATED" = "true" ] \
             && CORE_MSG="Updated to *${CORE_VERSION}*" \
             || CORE_MSG="Already at *${CORE_VERSION}*"
 
           PAYLOAD=$(jq -n \
-            --arg ch  "$SLACK_CHANNEL" \
-            --arg url "$PR_URL" \
-            --arg my  "$MONTH_YEAR" \
+            --arg ch  "${{ vars.SLACK_CHANNEL_ID }}" \
+            --arg url "${{ steps.create_pr.outputs.pr_url }}" \
+            --arg my  "${{ steps.vars.outputs.MONTH_YEAR }}" \
             --arg cm  "$CORE_MSG" \
-            --arg pm  "$PLUGIN_SUMMARY" \
-            --arg tm  "$THEME_SUMMARY" \
-            --arg mv  "$MULTIDEV_URL" \
-            --arg pn  "$PROJECT_NAME" \
+            --arg pm  "${{ steps.plugin_update.outputs.summary }}" \
+            --arg tm  "${{ steps.theme_update.outputs.summary }}" \
+            --arg mv  "${{ steps.multidev.outputs.url }}" \
+            --arg pn  "${{ vars.PANTHEON_PROJECT_NAME }}" \
             '{
               channel: $ch,
               text: "🚀 Maintenance PR ready for review!",
@@ -434,7 +425,7 @@ jobs:
             }')
 
           RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data "$PAYLOAD")
           echo "Slack response: $RESPONSE"
@@ -442,16 +433,11 @@ jobs:
 
       - name: Notify Slack - No Changes
         if: steps.changes.outputs.has_changes == 'false'
-        env:
-          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
-          MONTH_YEAR: ${{ steps.vars.outputs.MONTH_YEAR }}
-          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
           PAYLOAD=$(jq -n \
-            --arg ch "$SLACK_CHANNEL" \
-            --arg my "$MONTH_YEAR" \
-            --arg pn "$PROJECT_NAME" \
+            --arg ch "${{ vars.SLACK_CHANNEL_ID }}" \
+            --arg my "${{ steps.vars.outputs.MONTH_YEAR }}" \
+            --arg pn "${{ vars.PANTHEON_PROJECT_NAME }}" \
             '{
               channel: $ch,
               text: "ℹ️ No maintenance needed this month.",
@@ -465,7 +451,7 @@ jobs:
             }')
 
           RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data "$PAYLOAD")
           echo "Slack response: $RESPONSE"
@@ -473,18 +459,12 @@ jobs:
 
       - name: Notify Slack - Failure
         if: failure()
-        env:
-          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          REPO: ${{ github.repository }}
-          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
           PAYLOAD=$(jq -n \
-            --arg ch   "$SLACK_CHANNEL" \
-            --arg url  "$RUN_URL" \
-            --arg repo "$REPO" \
-            --arg pn   "$PROJECT_NAME" \
+            --arg ch   "${{ vars.SLACK_CHANNEL_ID }}" \
+            --arg url  "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --arg repo "${{ github.repository }}" \
+            --arg pn   "${{ vars.PANTHEON_PROJECT_NAME }}" \
             '{
               channel: $ch,
               text: "🚨 Maintenance workflow failed!",
@@ -498,7 +478,7 @@ jobs:
             }')
 
           RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data "$PAYLOAD")
           echo "Slack response: $RESPONSE"
