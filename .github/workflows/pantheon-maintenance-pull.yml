@@ -152,6 +152,7 @@ jobs:
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/plugin_update.txt || true
           SUMMARY=$(cat /tmp/plugin_update.txt)
+          cat /tmp/raw_plugin_update.txt
           cat /tmp/plugin_update.txt
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
 
@@ -165,6 +166,7 @@ jobs:
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/theme_update.txt || true
           SUMMARY=$(cat /tmp/theme_update.txt)
+          cat /tmp/raw_theme_update.txt
           cat /tmp/theme_update.txt
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
 
