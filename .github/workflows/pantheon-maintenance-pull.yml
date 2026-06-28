@@ -146,8 +146,8 @@ jobs:
         id: plugin_update
         run: |
           {
-            wp plugin update --all --no-color
-          } >> /tmp/raw_plugin_update.txt
+            wp plugin update --all --no-color 2>&1
+          } >> /tmp/raw_plugin_update.txt || true
           cat /tmp/raw_plugin_update.txt \
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/plugin_update.txt || true
@@ -159,8 +159,8 @@ jobs:
         id: theme_update
         run: |
           {
-            wp theme update --all --no-color
-          } >> /tmp/raw_theme_update.txt
+            wp theme update --all --no-color 2>&1
+          } >> /tmp/raw_theme_update.txt || true
           cat /tmp/raw_theme_update.txt \
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/theme_update.txt || true
