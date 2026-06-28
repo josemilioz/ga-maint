@@ -145,7 +145,7 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          wp plugin update --all --no-color --format=table 2>&1 \
+          wp plugin update --all --no-color 2>&1 \
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/plugin_update.txt || true
           SUMMARY=$(tail -1 /tmp/plugin_update.txt)
@@ -154,7 +154,7 @@ jobs:
       - name: Update themes
         id: theme_update
         run: |
-          wp theme update --all --no-color --format=table 2>&1 \
+          wp theme update --all --no-color 2>&1 \
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/theme_update.txt || true
           SUMMARY=$(tail -1 /tmp/theme_update.txt)
