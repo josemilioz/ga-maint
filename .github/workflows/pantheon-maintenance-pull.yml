@@ -145,30 +145,22 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          {
-            wp plugin update --all --no-color --format=table 2>&1
-          } >> /tmp/raw_plugin_update.txt || true
-          cat /tmp/raw_plugin_update.txt \
-            | grep -E '^\+|^\||^(Success|Error):' \
-            > /tmp/plugin_update.txt || true
-          SUMMARY=$(cat /tmp/plugin_update.txt)
-          cat /tmp/raw_plugin_update.txt
-          cat /tmp/plugin_update.txt
-          echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
+          wp plugin update --all --format=json 2>/dev/null \
+            > /tmp/plugin_update.json || true
+          jq -e 'type == "array"' /tmp/plugin_update.json > /dev/null 2>&1 \
+            || echo '[]' > /tmp/plugin_update.json
+          SUMMARY=$(jq -r 'if length == 0 then "Already up to date." else "Updated \(length) plugin(s)." end' /tmp/plugin_update.json)
+          echo "summary=${SUMMARY}" >> "$GITHUB_OUTPUT"
 
       - name: Update themes
         id: theme_update
         run: |
-          {
-            wp theme update --all --no-color --format=table 2>&1
-          } >> /tmp/raw_theme_update.txt || true
-          cat /tmp/raw_theme_update.txt \
-            | grep -E '^\+|^\||^(Success|Error):' \
-            > /tmp/theme_update.txt || true
-          SUMMARY=$(cat /tmp/theme_update.txt)
-          cat /tmp/raw_theme_update.txt
-          cat /tmp/theme_update.txt
-          echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
+          wp theme update --all --format=json 2>/dev/null \
+            > /tmp/theme_update.json || true
+          jq -e 'type == "array"' /tmp/theme_update.json > /dev/null 2>&1 \
+            || echo '[]' > /tmp/theme_update.json
+          SUMMARY=$(jq -r 'if length == 0 then "Already up to date." else "Updated \(length) theme(s)." end' /tmp/theme_update.json)
+          echo "summary=${SUMMARY}" >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
         run: rm -f wp-config-local.php
@@ -216,26 +208,30 @@ jobs:
             CORE_LINE="No update — already at **${CORE_VERSION}**"
           fi
 
-          echo "--- plugin_update.txt ---"
-          cat /tmp/plugin_update.txt 2>/dev/null || echo "(empty)"
-          echo "--- theme_update.txt ---"
-          cat /tmp/theme_update.txt 2>/dev/null || echo "(empty)"
-          echo "--- end debug ---"
+          PLUGIN_MD=$(jq -r '
+            if length == 0 then "_No plugins updated._"
+            else
+              "| Name | Old Version | New Version | Status |",
+              "|------|-------------|-------------|--------|",
+              (.[] | "| \(.name) | \(.old_version) | \(.new_version) | \(.status) |")
+            end
+          ' /tmp/plugin_update.json 2>/dev/null || echo "_No plugin data._")
+
+          THEME_MD=$(jq -r '
+            if length == 0 then "_No themes updated._"
+            else
+              "| Name | Old Version | New Version | Status |",
+              "|------|-------------|-------------|--------|",
+              (.[] | "| \(.name) | \(.old_version) | \(.new_version) | \(.status) |")
+            end
+          ' /tmp/theme_update.json 2>/dev/null || echo "_No theme data._")
 
           {
             printf '# Automated maintenance %s\n\n' "$MONTH_YEAR"
             printf '## WordPress Core\n%s\n\n' "$CORE_LINE"
-            printf '## Plugins\n```\n'
-            cat /tmp/plugin_update.txt 2>/dev/null
-            printf '\n```\n\n'
-            printf '## Themes\n```\n'
-            cat /tmp/theme_update.txt 2>/dev/null
-            printf '\n```\n'
+            printf '## Plugins\n%s\n\n' "$PLUGIN_MD"
+            printf '## Themes\n%s\n' "$THEME_MD"
           } > /tmp/pr_body.md
-
-          echo "--- pr_body.md ---"
-          cat /tmp/pr_body.md
-          echo "--- end pr_body ---"
 
           EXISTING=$(gh pr list --head "$BRANCH_NAME" --base "$DEFAULT_BRANCH" --json url,number --jq '.[0]' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
@@ -349,7 +345,38 @@ jobs:
             fi
           fi
 
-          COMMENT_JSON=$(jq -n --rawfile body /tmp/pr_body.md '{"comment": {"body": $body, "content-type": "text"}}')
+          CORE_UPDATED="${{ steps.core_update.outputs.updated }}"
+          CORE_VERSION="${{ steps.core_update.outputs.version }}"
+          PR_URL="${{ steps.create_pr.outputs.pr_url }}"
+          MONTH_YEAR="${{ steps.vars.outputs.MONTH_YEAR }}"
+
+          if [ "$CORE_UPDATED" = "true" ]; then
+            CORE_HTML="<p>Updated to <strong>${CORE_VERSION}</strong></p>"
+          else
+            CORE_HTML="<p>No update — already at <strong>${CORE_VERSION}</strong></p>"
+          fi
+
+          PLUGIN_HTML=$(jq -r '
+            if length == 0 then "<p><em>No plugins updated.</em></p>"
+            else
+              "<table><thead><tr><th>Name</th><th>Old Version</th><th>New Version</th><th>Status</th></tr></thead><tbody>",
+              (.[] | "<tr><td>\(.name)</td><td>\(.old_version)</td><td>\(.new_version)</td><td>\(.status)</td></tr>"),
+              "</tbody></table>"
+            end
+          ' /tmp/plugin_update.json 2>/dev/null | tr -d '\n' || echo "<p>No plugin data.</p>")
+
+          THEME_HTML=$(jq -r '
+            if length == 0 then "<p><em>No themes updated.</em></p>"
+            else
+              "<table><thead><tr><th>Name</th><th>Old Version</th><th>New Version</th><th>Status</th></tr></thead><tbody>",
+              (.[] | "<tr><td>\(.name)</td><td>\(.old_version)</td><td>\(.new_version)</td><td>\(.status)</td></tr>"),
+              "</tbody></table>"
+            end
+          ' /tmp/theme_update.json 2>/dev/null | tr -d '\n' || echo "<p>No theme data.</p>")
+
+          BODY="<h2>Automated Maintenance ${MONTH_YEAR}</h2><h3>WordPress Core</h3>${CORE_HTML}<h3>Plugins</h3>${PLUGIN_HTML}<h3>Themes</h3>${THEME_HTML}<p><a href=\"${PR_URL}\">View Pull Request</a></p>"
+
+          COMMENT_JSON=$(jq -n --arg body "$BODY" '{"comment": {"body": $body, "content-type": "html"}}')
           HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
             -H "Authorization: Basic $AUTH" \
             -H "Content-Type: application/json" \
