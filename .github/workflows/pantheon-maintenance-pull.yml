@@ -146,7 +146,7 @@ jobs:
         id: plugin_update
         run: |
           {
-            wp plugin update --all --no-color 2>&1
+            wp plugin update --all --no-color --format=table 2>&1
           } >> /tmp/raw_plugin_update.txt || true
           cat /tmp/raw_plugin_update.txt \
             | grep -E '^\+|^\||^(Success|Error):' \
@@ -159,7 +159,7 @@ jobs:
         id: theme_update
         run: |
           {
-            wp theme update --all --no-color 2>&1
+            wp theme update --all --no-color --format=table 2>&1
           } >> /tmp/raw_theme_update.txt || true
           cat /tmp/raw_theme_update.txt \
             | grep -E '^\+|^\||^(Success|Error):' \
