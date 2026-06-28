@@ -145,9 +145,8 @@ jobs:
       - name: Update plugins
         id: plugin_update
         run: |
-          wp plugin update --all --no-color 2>&1 \
-            | grep -E $'\t|^(Success|Error):' \
-            | column -t -s $'\t' \
+          wp plugin update --all --no-color --format=table 2>&1 \
+            | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/plugin_update.txt || true
           SUMMARY=$(grep -E '^(Success|Error):' /tmp/plugin_update.txt | tail -1)
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
@@ -155,9 +154,8 @@ jobs:
       - name: Update themes
         id: theme_update
         run: |
-          wp theme update --all --no-color 2>&1 \
-            | grep -E $'\t|^(Success|Error):' \
-            | column -t -s $'\t' \
+          wp theme update --all --no-color --format=table 2>&1 \
+            | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/theme_update.txt || true
           SUMMARY=$(grep -E '^(Success|Error):' /tmp/theme_update.txt | tail -1)
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
