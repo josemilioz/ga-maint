@@ -149,6 +149,7 @@ jobs:
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/plugin_update.txt || true
           SUMMARY=$(cat /tmp/plugin_update.txt)
+          cat /tmp/plugin_update.txt
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
 
       - name: Update themes
@@ -157,7 +158,8 @@ jobs:
           wp theme update --all --no-color 2>&1 \
             | grep -E '^\+|^\||^(Success|Error):' \
             > /tmp/theme_update.txt || true
-          SUMMARY=$(tail -1 /tmp/theme_update.txt)
+          SUMMARY=$(cat /tmp/theme_update.txt)
+          cat /tmp/theme_update.txt
           echo "summary=${SUMMARY:-Unknown}" >> "$GITHUB_OUTPUT"
 
       - name: Cleanup local config
