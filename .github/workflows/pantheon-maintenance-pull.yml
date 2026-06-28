@@ -250,29 +250,29 @@ jobs:
           echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
-      # - name: Set up PR multidev
-      #   if: steps.changes.outputs.has_changes == 'true'
-      #   id: multidev
-      #   run: |
-      #     SITE="${{ vars.PANTHEON_PROJECT_NAME }}"
-      #     MULTIDEV_NAME="pr-${{ steps.create_pr.outputs.pr_number }}"
-      #     MULTIDEV_URL="https://${MULTIDEV_NAME}-${SITE}.pantheonsite.io"
-      #
-      #     terminus multidev:create "$SITE".live "$MULTIDEV_NAME" --yes
-      #     git push pantheon "HEAD:${MULTIDEV_NAME}" --force
-      #     terminus env:clear-cache "$SITE"."$MULTIDEV_NAME"
-      #
-      #     echo "url=$MULTIDEV_URL" >> "$GITHUB_OUTPUT"
-      #     echo "name=$MULTIDEV_NAME" >> "$GITHUB_OUTPUT"
+      - name: Set up PR multidev
+        if: steps.changes.outputs.has_changes == 'true'
+        id: multidev
+        run: |
+          SITE="${{ vars.PANTHEON_PROJECT_NAME }}"
+          MULTIDEV_NAME="pr-${{ steps.create_pr.outputs.pr_number }}"
+          MULTIDEV_URL="https://${MULTIDEV_NAME}-${SITE}.pantheonsite.io"
 
-      # - name: Update PR with multidev link
-      #   if: steps.changes.outputs.has_changes == 'true'
-      #   env:
-      #     GH_TOKEN: ${{ github.token }}
-      #     MULTIDEV_URL: ${{ steps.multidev.outputs.url }}
-      #   run: |
-      #     printf '\n## Preview\n[PR environment](%s)\n' "$MULTIDEV_URL" >> /tmp/pr_body.md
-      #     gh pr edit "${{ steps.create_pr.outputs.pr_number }}" --body-file /tmp/pr_body.md
+          terminus multidev:create "$SITE".live "$MULTIDEV_NAME" --yes
+          git push pantheon "HEAD:${MULTIDEV_NAME}" --force
+          terminus env:clear-cache "$SITE"."$MULTIDEV_NAME"
+
+          echo "url=$MULTIDEV_URL" >> "$GITHUB_OUTPUT"
+          echo "name=$MULTIDEV_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Update PR with multidev link
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MULTIDEV_URL: ${{ steps.multidev.outputs.url }}
+        run: |
+          printf '\n## Preview\n[Test environment](%s)\n' "$MULTIDEV_URL" >> /tmp/pr_body.md
+          gh pr edit "${{ steps.create_pr.outputs.pr_number }}" --body-file /tmp/pr_body.md
 
       - name: Remove SSH Key
         if: always()
@@ -348,6 +348,7 @@ jobs:
           CORE_UPDATED="${{ steps.core_update.outputs.updated }}"
           CORE_VERSION="${{ steps.core_update.outputs.version }}"
           PR_URL="${{ steps.create_pr.outputs.pr_url }}"
+          MULTIDEV_URL="${{ steps.multidev.outputs.url }}"
           MONTH_YEAR="${{ steps.vars.outputs.MONTH_YEAR }}"
 
           if [ "$CORE_UPDATED" = "true" ]; then
@@ -374,7 +375,10 @@ jobs:
             end
           ' /tmp/theme_update.json 2>/dev/null | tr -d '\n' || echo "<p>No theme data.</p>")
 
-          BODY="<h2>Automated Maintenance ${MONTH_YEAR}</h2><h3>WordPress Core</h3>${CORE_HTML}<h3>Plugins</h3>${PLUGIN_HTML}<h3>Themes</h3>${THEME_HTML}<p><a href=\"${PR_URL}\">View Pull Request</a></p>"
+          PREVIEW_HTML=""
+          [ -n "$MULTIDEV_URL" ] && PREVIEW_HTML="<p><a href=\"${MULTIDEV_URL}\">Test environment</a></p>"
+
+          BODY="<h2>Automated Maintenance ${MONTH_YEAR}</h2><h3>WordPress Core</h3>${CORE_HTML}<h3>Plugins</h3>${PLUGIN_HTML}<h3>Themes</h3>${THEME_HTML}${PREVIEW_HTML}<p><a href=\"${PR_URL}\">View Pull Request</a></p>"
 
           COMMENT_JSON=$(jq -n --arg body "$BODY" '{"comment": {"body": $body, "content-type": "html"}}')
           HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
