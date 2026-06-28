@@ -164,18 +164,12 @@ jobs:
 
       - name: Notify Slack - Deployed
         if: always() && steps.push.outputs.pushed == 'true'
-        env:
-          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
-          TEST_URL: https://test-${{ vars.PANTHEON_PROJECT_NAME }}.pantheonsite.io
         run: |
           PAYLOAD=$(jq -n \
-            --arg ch   "$SLACK_CHANNEL" \
-            --arg url  "$RUN_URL" \
-            --arg pn   "$PROJECT_NAME" \
-            --arg test "$TEST_URL" \
+            --arg ch   "${{ vars.SLACK_CHANNEL_ID }}" \
+            --arg url  "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --arg pn   "${{ vars.PANTHEON_PROJECT_NAME }}" \
+            --arg test "https://test-${{ vars.PANTHEON_PROJECT_NAME }}.pantheonsite.io" \
             '{
               channel: $ch,
               text: "✅ Code deployed to Pantheon dev!",
@@ -189,7 +183,7 @@ jobs:
             }')
 
           RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data "$PAYLOAD")
           echo "Slack response: $RESPONSE"
@@ -197,18 +191,12 @@ jobs:
 
       - name: Notify Slack - Failure
         if: failure()
-        env:
-          SLACK_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: ${{ vars.SLACK_CHANNEL_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          REPO: ${{ github.repository }}
-          PROJECT_NAME: ${{ vars.PANTHEON_PROJECT_NAME }}
         run: |
           PAYLOAD=$(jq -n \
-            --arg ch   "$SLACK_CHANNEL" \
-            --arg url  "$RUN_URL" \
-            --arg repo "$REPO" \
-            --arg pn   "$PROJECT_NAME" \
+            --arg ch   "${{ vars.SLACK_CHANNEL_ID }}" \
+            --arg url  "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --arg repo "${{ github.repository }}" \
+            --arg pn   "${{ vars.PANTHEON_PROJECT_NAME }}" \
             '{
               channel: $ch,
               text: "🚨 Deploy to Pantheon failed!",
@@ -222,7 +210,7 @@ jobs:
             }')
 
           RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer ${SLACK_TOKEN}" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data "$PAYLOAD")
           echo "Slack response: $RESPONSE"
